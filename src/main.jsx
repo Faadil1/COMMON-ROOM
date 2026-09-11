@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ArrowDownRight, ArrowRight, RotateCcw } from 'lucide-react'
 import './styles.css'
+import './refinement.css'
 
 const FAMILY = {
   reader: {
