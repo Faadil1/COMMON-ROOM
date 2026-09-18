@@ -207,8 +207,12 @@ function CardLensReveal({ family, actions, secrets }) {
           <i />
           <small>Move the card across this surface.</small>
         </div>
-        <div className="lens-underprint" aria-hidden="true">
-          <span>NOT VISIBLE ON PUBLIC SURFACE</span>
+        <div
+          className="lens-reveal-window"
+          style={{ left: `${position.x}%`, top: `${position.y}%` }}
+          aria-hidden="true"
+        >
+          <span>MEMBER-ONLY ARCHIVE / REVEALED</span>
           <strong>{content.primary}</strong>
           <small>{content.secondary}</small>
         </div>
@@ -216,8 +220,9 @@ function CardLensReveal({ family, actions, secrets }) {
           <span className="lens-card-mark">NQ</span>
           <span className="lens-card-mode">MEMBER LENS</span>
           <strong>{content.title}</strong>
-          <small>{content.primary}</small>
+          <small>DRAG TO READ BENEATH THE PUBLIC SURFACE</small>
         </div>
+        <span className="lens-drag-cue" style={{ left: `${position.x}%`, top: `calc(${position.y}% + 116px)` }}>DRAG THE CARD → REVEAL</span>
       </div>
     </section>
   )
@@ -582,9 +587,11 @@ function CollectionRoom({ path, navigate, record }) {
         <span className="room-kicker">THE LIVING COLLECTION / {view === 'wall' ? 'ACCESSION WALL' : 'NORTH QUARTER'}</span>
         <h1>{view === 'wall' ? <>Different people.<br /><em>Same library.</em></> : <>The collection<br /><em>reveals the quarter.</em></>}</h1>
         <p>{view === 'wall' ? 'Every record keeps the common system, but no two visits leave exactly the same residue.' : 'Pull back far enough and individual records stop looking isolated. Together they form a civic memory of North Quarter.'}</p>
-        <div className="collection-view-toggle" role="group" aria-label="Collection view">
-          <button className={view === 'wall' ? 'is-current' : ''} onClick={() => setView('wall')}>VIEW COLLECTION</button>
-          <button className={view === 'quarter' ? 'is-current' : ''} onClick={() => setView('quarter')}>REVEAL THE QUARTER</button>
+        <div className={`collection-view-toggle ${view === 'wall' ? 'is-wall' : 'is-quarter'}`} role="group" aria-label="Collection view">
+          <button className={view === 'wall' ? 'is-current' : ''} onClick={() => setView('wall')}>COLLECTION WALL</button>
+          <button className={`collection-reveal-cta ${view === 'quarter' ? 'is-current' : ''}`} onClick={() => setView('quarter')}>
+            <span>REVEAL THE QUARTER</span><ArrowRight size={15} />
+          </button>
         </div>
         {view === 'wall' && (
           <div className="collection-filters">
