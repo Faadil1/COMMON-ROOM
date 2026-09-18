@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
 import './styles.css'
 import './refinement.css'
 import './rooms.css'
+import './memorability.css'
 
 const FAMILY = {
   reader: {
@@ -96,14 +97,170 @@ function safeLoadRecord() {
   }
 }
 
-function getOutcome(actions) {
+function getFamilyScores(actions) {
   const score = { reader: 0, maker: 0, seeker: 0, local: 0 }
   actions.forEach((id) => {
     const action = ACTIONS[id]
     if (action) score[action.family] += 1
   })
-  const ranked = Object.entries(score).sort((a, b) => b[1] - a[1])
-  return ranked[0][1] > 0 ? ranked[0][0] : 'reader'
+  return score
+}
+
+function getOutcome(actions) {
+  const score = getFamilyScores(actions)
+  const maxScore = Math.max(...Object.values(score))
+  if (maxScore <= 0) return 'reader'
+
+  const leaders = Object.keys(score).filter((family) => score[family] === maxScore)
+  if (leaders.length === 1) return leaders[0]
+
+  // Ties belong to the most recent behaviour, never to object-key order.
+  for (let index = actions.length - 1; index >= 0; index -= 1) {
+    const family = ACTIONS[actions[index]]?.family
+    if (family && leaders.includes(family)) return family
+  }
+  return leaders[0]
+}
+
+function getPatinaLevel(actions, secrets) {
+  const weight = actions.length + (secrets.length * 2)
+  if (weight >= 8) return 3
+  if (weight >= 4) return 2
+  if (weight >= 1) return 1
+  return 0
+}
+
+const LENS_CONTENT = {
+  reader: {
+    title: 'MARGIN / PREVIOUS HANDS',
+    primary: 'APR 14 1987 — “the room is also the reader.”',
+    secondary: 'Borrowed 12 times · returned with one pencilled line.',
+  },
+  maker: {
+    title: 'REGISTER / UNDERPRINT',
+    primary: 'PLATE B / +2 MM — retained as evidence, not corrected.',
+    secondary: 'Workshop proof 04 · uncoated stock · two-pass ink.',
+  },
+  seeker: {
+    title: 'REFERENCE / UNINDEXED',
+    primary: 'NQ.000 → an empty drawer with three handwritten cross-references.',
+    secondary: 'A catalogue becomes a route when someone follows the wrong number.',
+  },
+  local: {
+    title: 'ADDRESS / BEFORE',
+    primary: '44 Vale, 1963 — reading room above Mercer Grocer.',
+    secondary: 'The building disappeared. The habit of gathering did not.',
+  },
+}
+
+function CardPatinaLayer({ actions = [], secrets = [], compact = false }) {
+  const scores = getFamilyScores(actions)
+  const level = getPatinaLevel(actions, secrets)
+  if (level === 0) return null
+
+  const secretFamilies = secrets.map((id) => SECRETS[id]?.family).filter(Boolean)
+  return (
+    <div className={`card-patina patina-level-${level} ${compact ? 'card-patina--compact' : ''}`} aria-hidden="true">
+      {scores.reader > 0 && <span className="patina-reader"><i /><i /><i /><b>p. {210 + scores.reader}</b></span>}
+      {scores.maker > 0 && <span className="patina-maker"><i /><i /><b>REG / +{scores.maker}</b></span>}
+      {scores.seeker > 0 && <span className="patina-seeker"><i /><i /><b>NQ.{String(20 + scores.seeker).padStart(3, '0')}</b></span>}
+      {scores.local > 0 && <span className="patina-local"><i /><i /><b>45.42° N</b></span>}
+      <span className="patina-edge" />
+      {secretFamilies.slice(-2).map((family, index) => <span key={`${family}-${index}`} className={`patina-secret patina-secret-${family} patina-secret-${index + 1}`}>NQ / FOUND</span>)}
+    </div>
+  )
+}
+
+function CardLensReveal({ family, actions, secrets }) {
+  const [position, setPosition] = useState({ x: 62, y: 54 })
+  const [dragging, setDragging] = useState(false)
+  const content = LENS_CONTENT[family]
+
+  const moveLens = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = Math.min(82, Math.max(18, ((event.clientX - rect.left) / rect.width) * 100))
+    const y = Math.min(76, Math.max(24, ((event.clientY - rect.top) / rect.height) * 100))
+    setPosition({ x, y })
+  }
+
+  return (
+    <section className={`lens-section family-${family}`}>
+      <div className="lens-copy">
+        <span className="room-kicker">MEMBER OPTICS / HIDDEN LAYER</span>
+        <h2>The card changes<br /><em>what you can see.</em></h2>
+        <p>Move your Member Record across the archive. The credential becomes an instrument: membership reveals provenance, memory and traces that the public surface leaves quiet.</p>
+        <div className="lens-proof">
+          <span>{actions.length} REGISTERED MARKS</span>
+          <span>{secrets.length}/4 HIDDEN TRACES</span>
+        </div>
+      </div>
+      <div
+        className={`card-lens-stage ${dragging ? 'is-dragging' : ''}`}
+        onPointerDown={(event) => { setDragging(true); moveLens(event) }}
+        onPointerMove={(event) => { if (dragging) moveLens(event) }}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+      >
+        <div className="lens-archive">
+          <span>ACCESSION / NQ 1963–2026</span>
+          <strong>NORTH QUARTER / PUBLIC MEMORY REGISTER</strong>
+          <i />
+          <small>Move the card across this surface.</small>
+        </div>
+        <div className="lens-underprint" aria-hidden="true">
+          <span>NOT VISIBLE ON PUBLIC SURFACE</span>
+          <strong>{content.primary}</strong>
+          <small>{content.secondary}</small>
+        </div>
+        <div className="lens-card" style={{ left: `${position.x}%`, top: `${position.y}%` }}>
+          <span className="lens-card-mark">NQ</span>
+          <span className="lens-card-mode">MEMBER LENS</span>
+          <strong>{content.title}</strong>
+          <small>{content.primary}</small>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+const QUARTER_POSITIONS = [
+  [8,18],[17,16],[27,20],[39,17],[52,19],[65,16],[76,21],[86,18],
+  [12,39],[23,36],[34,42],[47,38],[59,41],[71,36],[83,42],
+  [7,61],[18,66],[31,60],[43,65],[56,59],[68,64],[81,60],[90,66],
+  [20,82],[34,79],[49,83],[64,79],[79,84],
+]
+
+function QuarterCollectionReveal({ currentFamily }) {
+  const families = Object.keys(FAMILY)
+  return (
+    <section className="collection-quarter" aria-label="The Living Collection rearranged as North Quarter">
+      <svg className="quarter-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M3 28 C28 21 55 31 97 23" />
+        <path d="M6 52 C29 46 61 53 95 48" />
+        <path d="M4 75 C35 68 67 79 96 72" />
+        <path d="M21 5 C24 34 19 63 27 96" />
+        <path d="M53 3 C49 35 57 63 52 97" />
+        <path d="M78 7 C72 34 82 66 76 95" />
+      </svg>
+      <div className="quarter-river" aria-hidden="true" />
+      {QUARTER_POSITIONS.map(([x, y], index) => {
+        const family = families[index % families.length]
+        const isCurrent = index === 19
+        return (
+          <span
+            key={index}
+            className={`quarter-record family-${family} ${isCurrent ? 'is-current-record' : ''}`}
+            style={{ left: `${x}%`, top: `${y}%`, '--family-accent': FAMILY[family].accent }}
+          >
+            <i />
+            <b>{isCurrent ? 'YOUR RECORD' : FAMILY[family].title}</b>
+          </span>
+        )
+      })}
+      <div className="quarter-library-node"><span>NQ</span><strong>COMMON ROOM</strong><small>THE COLLECTION BECOMES THE QUARTER</small></div>
+      <p className="quarter-statement">Every record keeps its own marks. Together, they describe the place that made them possible.</p>
+    </section>
+  )
 }
 
 function Monogram() {
@@ -114,7 +271,7 @@ function Monogram() {
   )
 }
 
-function MemberCard({ family = 'reader', actions = [], compact = false, resolved = false, unregistered = false }) {
+function MemberCard({ family = 'reader', actions = [], secrets = [], compact = false, resolved = false, unregistered = false }) {
   const meta = FAMILY[family]
   const visualTraces = actions.slice(-3).map((id) => ACTIONS[id]).filter(Boolean)
   return (
@@ -135,6 +292,7 @@ function MemberCard({ family = 'reader', actions = [], compact = false, resolved
       <div className="card-mark" aria-hidden="true">
         <span className="mark mark-a" /><span className="mark mark-b" /><span className="mark mark-c" /><span className="mark-line" />
       </div>
+      <CardPatinaLayer actions={actions} secrets={secrets} compact={compact} />
       {!compact && (
         <>
           <p className="card-statement">{unregistered ? 'Your record changes as you move through the library.' : meta.statement}</p>
@@ -235,7 +393,7 @@ function Lobby({ path, navigate, record }) {
           </button>
         </div>
         <div className="lobby-object">
-          <div className="lobby-vitrine"><MemberCard family={family} actions={record.actions} resolved={record.actions.length >= 3} unregistered={!record.actions.length} /></div>
+          <div className="lobby-vitrine"><MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={record.actions.length >= 3} unregistered={!record.actions.length} /></div>
           <div className="lobby-plaque"><strong>MEMBERSHIP IS A RECORD OF PARTICIPATION.</strong><span>NQ / ACCESSION DESK</span></div>
         </div>
       </section>
@@ -398,7 +556,7 @@ function RecordRoom({ path, navigate, record, reset }) {
         </div>
         <div className="record-object">
           <div className="record-light" />
-          <MemberCard family={family} actions={record.actions} resolved={resolved} unregistered={!resolved} />
+          <MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} />
           <span className="hidden-emboss">YOU WERE HERE.</span>
           <div className="record-ledger">
             <span>{record.actions.length} REGISTERED MARKS</span><span>{record.secrets.length}/4 HIDDEN TRACES</span>
@@ -406,31 +564,47 @@ function RecordRoom({ path, navigate, record, reset }) {
           {record.secrets.length > 0 && <div className="secret-ledger">{record.secrets.map((id) => <span key={id}>{SECRETS[id].glyph} / {SECRETS[id].label}</span>)}</div>}
         </div>
       </section>
+      {resolved && <CardLensReveal family={family} actions={record.actions} secrets={record.secrets} />}
     </RoomShell>
   )
 }
 
 function CollectionRoom({ path, navigate, record }) {
   const [filter, setFilter] = useState('all')
+  const [view, setView] = useState('wall')
   const families = Object.keys(FAMILY)
+  const currentFamily = getOutcome(record.actions)
   const wall = Array.from({ length: 28 }).map((_, index) => families[index % 4]).filter((family) => filter === 'all' || filter === family)
+
   return (
     <RoomShell path={path} navigate={navigate} record={record} tone="collection">
       <section className="collection-room-head">
-        <span className="room-kicker">THE LIVING COLLECTION / ACCESSION WALL</span>
-        <h1>Different people.<br /><em>Same library.</em></h1>
-        <p>Every record keeps the common system, but no two visits leave exactly the same residue.</p>
-        <div className="collection-filters">
-          {['all', ...families].map((key) => <button key={key} className={filter === key ? 'is-current' : ''} onClick={() => setFilter(key)}>{key === 'all' ? 'ALL RECORDS' : FAMILY[key].title}</button>)}
+        <span className="room-kicker">THE LIVING COLLECTION / {view === 'wall' ? 'ACCESSION WALL' : 'NORTH QUARTER'}</span>
+        <h1>{view === 'wall' ? <>Different people.<br /><em>Same library.</em></> : <>The collection<br /><em>reveals the quarter.</em></>}</h1>
+        <p>{view === 'wall' ? 'Every record keeps the common system, but no two visits leave exactly the same residue.' : 'Pull back far enough and individual records stop looking isolated. Together they form a civic memory of North Quarter.'}</p>
+        <div className="collection-view-toggle" role="group" aria-label="Collection view">
+          <button className={view === 'wall' ? 'is-current' : ''} onClick={() => setView('wall')}>VIEW COLLECTION</button>
+          <button className={view === 'quarter' ? 'is-current' : ''} onClick={() => setView('quarter')}>REVEAL THE QUARTER</button>
         </div>
+        {view === 'wall' && (
+          <div className="collection-filters">
+            {['all', ...families].map((key) => <button key={key} className={filter === key ? 'is-current' : ''} onClick={() => setFilter(key)}>{key === 'all' ? 'ALL RECORDS' : FAMILY[key].title}</button>)}
+          </div>
+        )}
       </section>
-      <section className="living-wall">
-        {wall.map((family, index) => (
-          <button key={`${family}-${index}`} className={`living-record family-${family}`} style={{ '--family-accent': FAMILY[family].accent }}>
-            <span>NQ / {String(index + 17).padStart(4, '0')}</span><strong>{FAMILY[family].title}</strong><i /><small>{index % 3 === 0 ? 'MARGIN' : index % 3 === 1 ? 'REGISTER' : 'TRACE'}</small>
-          </button>
-        ))}
-      </section>
+
+      {view === 'wall' ? (
+        <section className="living-wall">
+          {wall.map((family, index) => (
+            <button key={`${family}-${index}`} className={`living-record family-${family}`} style={{ '--family-accent': FAMILY[family].accent }}>
+              <span>NQ / {String(index + 17).padStart(4, '0')}</span><strong>{FAMILY[family].title}</strong><i /><small>{index % 3 === 0 ? 'MARGIN' : index % 3 === 1 ? 'REGISTER' : 'TRACE'}</small>
+            </button>
+          ))}
+        </section>
+      ) : (
+        <QuarterCollectionReveal currentFamily={currentFamily} />
+      )}
+
       <footer className="collection-room-footer"><div><Monogram /><span>NORTH QUARTER PUBLIC LIBRARY</span></div><strong>YOUR LIBRARY. YOUR WAY IN.</strong><button onClick={() => navigate('/')}>RETURN TO COMMON ROOM</button></footer>
     </RoomShell>
   )
