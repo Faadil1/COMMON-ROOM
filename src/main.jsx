@@ -255,7 +255,7 @@ const QUARTER_POSITIONS = [
 function QuarterCollectionReveal({ currentFamily }) {
   const families = Object.keys(FAMILY)
   return (
-    <section className="collection-quarter" aria-label="The Living Collection rearranged as North Quarter">
+    <section className="collection-quarter" style={{ '--family-accent': FAMILY[currentFamily].accent }} aria-label="The Living Collection rearranged as North Quarter">
       <svg className="quarter-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path className="quarter-path path-1" d="M3 28 C28 21 55 31 97 23" />
         <path className="quarter-path path-2" d="M6 52 C29 46 61 53 95 48" />
