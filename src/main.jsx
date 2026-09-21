@@ -263,7 +263,7 @@ function FamilyEvidenceMark({ family, actions = [], compact = false, unregistere
   )
 }
 
-function CardLensReveal({ family, actions, secrets }) {
+function CardLensReveal({ family, actions, secrets, navigate }) {
   const [position, setPosition] = useState({ x: 62, y: 54 })
   const [dragging, setDragging] = useState(false)
   const content = LENS_CONTENT[family]
@@ -276,7 +276,7 @@ function CardLensReveal({ family, actions, secrets }) {
   }
 
   return (
-    <section className={`lens-section family-${family}`}>
+    <section id="member-lens" className={`lens-section family-${family}`}>
       <div className="lens-copy">
         <span className="room-kicker">MEMBER OPTICS / HIDDEN LAYER</span>
         <h2>The card changes<br /><em>what you can see.</em></h2>
@@ -285,6 +285,9 @@ function CardLensReveal({ family, actions, secrets }) {
           <span>{actions.length} REGISTERED MARKS</span>
           <span>{secrets.length}/4 HIDDEN TRACES</span>
         </div>
+        <button className="lens-continue" onClick={() => navigate('/collection')}>
+          <span>ENTER THE LIVING COLLECTION FROM THE LENS</span><ArrowRight size={15} />
+        </button>
       </div>
       <div
         className={`card-lens-stage ${dragging ? 'is-dragging' : ''}`}
@@ -656,7 +659,7 @@ function RecordRoom({ path, navigate, record, reset }) {
             {familyCounts.map(([key, count]) => <div key={key}><span>{FAMILY[key].title}</span><i><b style={{ width: `${Math.min(100, count * 34)}%`, background: FAMILY[key].accent }} /></i><strong>{count}</strong></div>)}
           </div>
           <div className="record-actions">
-            <button className="room-primary room-primary-light" onClick={() => navigate(resolved ? '/collection' : '/stacks')}>{resolved ? 'Enter the living collection' : 'Keep exploring'} <ArrowRight size={16} /></button>
+            <button className="room-primary room-primary-light" onClick={() => resolved ? document.getElementById('member-lens')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : navigate('/stacks')}>{resolved ? 'Use your Member Lens' : 'Keep exploring'} <ArrowRight size={16} /></button>
             <button className="room-reset" onClick={reset}><RotateCcw size={14} /> Reset record</button>
           </div>
         </div>
@@ -670,7 +673,7 @@ function RecordRoom({ path, navigate, record, reset }) {
           {record.secrets.length > 0 && <div className="secret-ledger">{record.secrets.map((id) => <span key={id}>{SECRETS[id].glyph} / {SECRETS[id].label}</span>)}</div>}
         </div>
       </section>
-      {resolved && <CardLensReveal family={family} actions={record.actions} secrets={record.secrets} />}
+      {resolved && <CardLensReveal family={family} actions={record.actions} secrets={record.secrets} navigate={navigate} />}
     </RoomShell>
   )
 }
@@ -705,7 +708,7 @@ function CollectionRoom({ path, navigate, record }) {
         <section className="living-wall">
           {wall.map((family, index) => (
             <button key={`${family}-${index}`} className={`living-record family-${family}`} style={{ '--family-accent': FAMILY[family].accent }}>
-              <span>NQ / {String(index + 17).padStart(4, '0')}</span><strong>{FAMILY[family].title}</strong><i /><small>{index % 3 === 0 ? 'MARGIN' : index % 3 === 1 ? 'REGISTER' : 'TRACE'}</small>
+              <span>NQ / {String(index + 17).padStart(4, '0')}</span><strong>{FAMILY[family].title}</strong><i className="living-aperture" /><small>{family === 'reader' ? 'MARGIN' : family === 'maker' ? 'REGISTER' : family === 'seeker' ? 'REFERENCE' : 'ADDRESS'}</small>
             </button>
           ))}
         </section>
