@@ -83,6 +83,23 @@ const TRANSITIONS = {
   '/': ['RETURN', 'COMMON'],
 }
 
+const ROOM_FAMILY = {
+  '/stacks': 'reader',
+  '/workshop': 'maker',
+  '/index': 'seeker',
+  '/quarter': 'local',
+}
+
+const TRACE_FORM = {
+  '/stacks': 'margin',
+  '/workshop': 'register',
+  '/index': 'reference',
+  '/quarter': 'street',
+  '/record': 'card',
+  '/collection': 'city',
+  '/': 'return',
+}
+
 const STORAGE_KEY = 'common-room-member-record-v2'
 
 function safeLoadRecord() {
@@ -240,17 +257,18 @@ function QuarterCollectionReveal({ currentFamily }) {
   return (
     <section className="collection-quarter" aria-label="The Living Collection rearranged as North Quarter">
       <svg className="quarter-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M3 28 C28 21 55 31 97 23" />
-        <path d="M6 52 C29 46 61 53 95 48" />
-        <path d="M4 75 C35 68 67 79 96 72" />
-        <path d="M21 5 C24 34 19 63 27 96" />
-        <path d="M53 3 C49 35 57 63 52 97" />
-        <path d="M78 7 C72 34 82 66 76 95" />
+        <path className="quarter-path path-1" d="M3 28 C28 21 55 31 97 23" />
+        <path className="quarter-path path-2" d="M6 52 C29 46 61 53 95 48" />
+        <path className="quarter-path path-3" d="M4 75 C35 68 67 79 96 72" />
+        <path className="quarter-path path-4" d="M21 5 C24 34 19 63 27 96" />
+        <path className="quarter-path path-5" d="M53 3 C49 35 57 63 52 97" />
+        <path className="quarter-path path-6" d="M78 7 C72 34 82 66 76 95" />
+        <path className="quarter-path quarter-path-user" d="M43 65 C46 58 49 53 52 48" />
       </svg>
       <div className="quarter-river" aria-hidden="true" />
       {QUARTER_POSITIONS.map(([x, y], index) => {
-        const family = families[index % families.length]
         const isCurrent = index === 19
+        const family = isCurrent ? currentFamily : families[index % families.length]
         return (
           <span
             key={index}
@@ -263,7 +281,7 @@ function QuarterCollectionReveal({ currentFamily }) {
         )
       })}
       <div className="quarter-library-node"><span>NQ</span><strong>COMMON ROOM</strong><small>THE COLLECTION BECOMES THE QUARTER</small></div>
-      <p className="quarter-statement">Every record keeps its own marks. Together, they describe the place that made them possible.</p>
+      <p className="quarter-statement"><strong>THE LIBRARY REMEMBERS.</strong><span>Every record keeps its own marks. When those traces connect, they draw the place that made them possible.</span></p>
     </section>
   )
 }
@@ -368,9 +386,20 @@ function MemberPassport({ record, navigate }) {
 }
 
 function RoomShell({ path, navigate, record, children, tone = 'paper' }) {
+  const roomFamily = ROOM_FAMILY[path]
+  const roomMarks = roomFamily ? record.actions.filter((id) => ACTIONS[id]?.family === roomFamily) : []
+  const remembered = roomMarks.length > 0
+
   return (
-    <main className={`room-page room-tone-${tone}`}>
+    <main className={`room-page room-tone-${tone} ${remembered ? 'room-is-remembered' : ''}`}>
       <SiteHeader path={path} navigate={navigate} />
+      {remembered && (
+        <div className={`room-memory-residue memory-${roomFamily} memory-level-${Math.min(3, roomMarks.length)}`} aria-hidden="true">
+          <span className="memory-line memory-line-a" />
+          <span className="memory-line memory-line-b" />
+          <i>{roomMarks.length} TRACE{roomMarks.length > 1 ? 'S' : ''} RETAINED</i>
+        </div>
+      )}
       {children}
       {path !== '/record' && <MemberPassport record={record} navigate={navigate} />}
     </main>
@@ -449,7 +478,7 @@ function StacksRoom({ path, navigate, record, addAction, addSecret }) {
 }
 
 function WorkshopRoom({ path, navigate, record, addAction, addSecret }) {
-  const [registration, setRegistration] = useState(31)
+  const [registration, setRegistration] = useState(record.actions.includes('workshop-align') ? 50 : 31)
   const aligned = Math.abs(registration - 50) <= 4
   const secretFound = record.secrets.includes('imperfection')
   return (
@@ -633,13 +662,17 @@ function App() {
   const navigate = (next) => {
     if (next === path) return
     const words = TRANSITIONS[next] || ['NEXT', 'ROOM']
-    setTransition(words)
+    setTransition({
+      words,
+      from: TRACE_FORM[path] || 'origin',
+      to: TRACE_FORM[next] || 'next',
+    })
     window.setTimeout(() => {
       window.history.pushState({}, '', next)
       setPath(next)
       window.scrollTo(0, 0)
     }, 260)
-    window.setTimeout(() => setTransition(null), 640)
+    window.setTimeout(() => setTransition(null), 720)
   }
 
   const props = { path, navigate, record, addAction, addSecret, reset }
@@ -656,8 +689,19 @@ function App() {
   return (
     <>
       {page}
-      <div className={`passage-transition ${transition ? 'is-active' : ''}`} aria-hidden="true">
-        {transition && <><span>{transition[0]}</span><i>→</i><strong>{transition[1]}</strong></>}
+      <div className={`passage-transition ${transition ? 'is-active' : ''} ${transition ? `trace-from-${transition.from} trace-to-${transition.to}` : ''}`} aria-hidden="true">
+        {transition && (
+          <>
+            <span>{transition.words[0]}</span>
+            <div className="passage-trace">
+              <i className="trace-segment trace-segment-a" />
+              <i className="trace-segment trace-segment-b" />
+              <b className="trace-node" />
+            </div>
+            <strong>{transition.words[1]}</strong>
+            <small>ONE TRACE / MANY FORMS</small>
+          </>
+        )}
       </div>
     </>
   )
