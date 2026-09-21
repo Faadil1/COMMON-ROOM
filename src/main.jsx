@@ -188,6 +188,81 @@ function CardPatinaLayer({ actions = [], secrets = [], compact = false }) {
   )
 }
 
+
+const FAMILY_ACTION_ORDER = {
+  reader: ['stacks-fiction', 'stacks-essay', 'stacks-poetry'],
+  maker: ['workshop-align', 'workshop-stock', 'workshop-ink'],
+  seeker: ['index-021', 'index-114', 'index-403'],
+  local: ['quarter-market', 'quarter-school', 'quarter-river'],
+}
+
+function FamilyEvidenceMark({ family, actions = [], compact = false, unregistered = false }) {
+  const active = new Set(actions)
+  const familyActions = FAMILY_ACTION_ORDER[family] || []
+  const activeCount = familyActions.filter((id) => active.has(id)).length
+  const isActive = (id) => active.has(id)
+  const classFor = (id, base = 'evidence-stroke') => `${base} ${isActive(id) ? 'is-active' : ''}`
+  const apertureCode = {
+    reader: 'MARGIN / PAGE',
+    maker: 'REGISTER / PLATE',
+    seeker: '021 → 114 → 403',
+    local: 'MARKET → SCHOOL → RIVER',
+  }[family]
+
+  return (
+    <div className={`evidence-mark evidence-mark-${family} ${compact ? 'evidence-mark--compact' : ''} ${unregistered ? 'is-open' : ''}`} aria-hidden="true">
+      <div className="trace-spine">
+        <span>{unregistered ? 'OPEN TRACE' : `TRACE ${String(activeCount).padStart(2, '0')}`}</span>
+        {familyActions.map((id) => <i key={id} className={isActive(id) ? 'is-active' : ''} />)}
+      </div>
+      <div className="accession-aperture">
+        {family === 'reader' && (
+          <svg viewBox="0 0 100 100">
+            <path className="evidence-ghost" d="M19 12V88" />
+            <path className={classFor('stacks-fiction')} d="M28 24H82" />
+            <path className={classFor('stacks-essay')} d="M28 48H68" />
+            <path className={classFor('stacks-poetry')} d="M28 72H77" />
+            <circle className={classFor('stacks-fiction', 'evidence-node')} cx="19" cy="24" r="3.6" />
+            <circle className={classFor('stacks-essay', 'evidence-node')} cx="19" cy="48" r="3.6" />
+            <circle className={classFor('stacks-poetry', 'evidence-node')} cx="19" cy="72" r="3.6" />
+          </svg>
+        )}
+        {family === 'maker' && (
+          <svg viewBox="0 0 100 100">
+            <rect className={classFor('workshop-stock')} x="22" y="20" width="56" height="60" rx="2" />
+            <path className={classFor('workshop-align')} d="M10 50H90M50 10V90M43 43H57V57H43Z" />
+            <rect className={classFor('workshop-ink')} x="27" y="16" width="56" height="60" rx="2" />
+            <circle className={classFor('workshop-align', 'evidence-node')} cx="50" cy="50" r="4.2" />
+          </svg>
+        )}
+        {family === 'seeker' && (
+          <svg viewBox="0 0 100 100">
+            <path className="evidence-ghost" d="M15 76C27 60 35 54 47 56C60 58 64 28 86 28" />
+            <path className={`evidence-stroke ${isActive('index-021') && isActive('index-114') ? 'is-active' : ''}`} d="M15 76C27 60 35 54 47 56" />
+            <path className={`evidence-stroke ${isActive('index-114') && isActive('index-403') ? 'is-active' : ''}`} d="M47 56C60 58 64 28 86 28" />
+            <circle className={classFor('index-021', 'evidence-node')} cx="15" cy="76" r="4" />
+            <circle className={classFor('index-114', 'evidence-node')} cx="47" cy="56" r="4" />
+            <circle className={classFor('index-403', 'evidence-node')} cx="86" cy="28" r="4" />
+            <text x="9" y="90">021</text><text x="39" y="49">114</text><text x="73" y="20">403</text>
+          </svg>
+        )}
+        {family === 'local' && (
+          <svg viewBox="0 0 100 100">
+            <path className="evidence-ghost" d="M8 67L34 55L55 64L89 32M18 18L34 55L28 88M55 64L74 87" />
+            <path className={classFor('quarter-market')} d="M8 67L34 55L55 64" />
+            <path className={classFor('quarter-school')} d="M18 18L34 55" />
+            <path className={classFor('quarter-river')} d="M55 64L89 32" />
+            <circle className={classFor('quarter-market', 'evidence-node')} cx="34" cy="55" r="4" />
+            <circle className={classFor('quarter-school', 'evidence-node')} cx="18" cy="18" r="4" />
+            <circle className={classFor('quarter-river', 'evidence-node')} cx="89" cy="32" r="4" />
+          </svg>
+        )}
+        <span className="aperture-code">{unregistered ? 'NO TRACE / OPEN' : apertureCode}</span>
+      </div>
+    </div>
+  )
+}
+
 function CardLensReveal({ family, actions, secrets }) {
   const [position, setPosition] = useState({ x: 62, y: 54 })
   const [dragging, setDragging] = useState(false)
@@ -205,7 +280,7 @@ function CardLensReveal({ family, actions, secrets }) {
       <div className="lens-copy">
         <span className="room-kicker">MEMBER OPTICS / HIDDEN LAYER</span>
         <h2>The card changes<br /><em>what you can see.</em></h2>
-        <p>Move your Member Record across the archive. The credential becomes an instrument: membership reveals provenance, memory and traces that the public surface leaves quiet.</p>
+        <p>Move the card across the archive. Only its accession aperture reveals the hidden layer: the same opening that carries your traces becomes an instrument for provenance and memory.</p>
         <div className="lens-proof">
           <span>{actions.length} REGISTERED MARKS</span>
           <span>{secrets.length}/4 HIDDEN TRACES</span>
@@ -234,6 +309,8 @@ function CardLensReveal({ family, actions, secrets }) {
           <small>{content.secondary}</small>
         </div>
         <div className="lens-card" style={{ left: `${position.x}%`, top: `${position.y}%` }}>
+          <span className="lens-card-paper" aria-hidden="true" />
+          <span className="lens-accession-aperture" aria-hidden="true"><i /></span>
           <span className="lens-card-mark">NQ</span>
           <span className="lens-card-mode">MEMBER LENS</span>
           <strong>{content.title}</strong>
@@ -296,13 +373,13 @@ function Monogram() {
 
 function MemberCard({ family = 'reader', actions = [], secrets = [], compact = false, resolved = false, unregistered = false }) {
   const meta = FAMILY[family]
-  const visualTraces = actions.slice(-3).map((id) => ACTIONS[id]).filter(Boolean)
   return (
     <article
       className={`member-card family-${family} ${compact ? 'member-card--compact' : ''} ${resolved ? 'member-card--resolved' : ''} ${unregistered ? 'member-card--unregistered' : ''}`}
       style={{ '--family-accent': meta.accent }}
     >
       <div className="paper-grain" aria-hidden="true" />
+      <div className="accession-rail" aria-hidden="true"><span>ACCESSION / NQ</span><i /><i /><i /></div>
       <div className="card-register" aria-hidden="true"><span /><span /></div>
       <header className="card-brand">
         <Monogram />
@@ -312,9 +389,7 @@ function MemberCard({ family = 'reader', actions = [], secrets = [], compact = f
         <h3>{unregistered ? 'UNREGISTERED' : meta.title}</h3>
         {!compact && <span className="card-edition">{unregistered ? 'OPEN / 000' : meta.edition}</span>}
       </div>
-      <div className="card-mark" aria-hidden="true">
-        <span className="mark mark-a" /><span className="mark mark-b" /><span className="mark mark-c" /><span className="mark-line" />
-      </div>
+      <FamilyEvidenceMark family={family} actions={actions} compact={compact} unregistered={unregistered} />
       <CardPatinaLayer actions={actions} secrets={secrets} compact={compact} />
       {!compact && (
         <>
@@ -323,9 +398,6 @@ function MemberCard({ family = 'reader', actions = [], secrets = [], compact = f
           <div className="card-detail">{unregistered ? 'NO TRACE YET' : meta.detail}</div>
         </>
       )}
-      {visualTraces.map((trace, index) => (
-        <span key={`${trace.label}-${index}`} className={`card-trace trace-${index + 1}`}>{trace.glyph}</span>
-      ))}
     </article>
   )
 }
