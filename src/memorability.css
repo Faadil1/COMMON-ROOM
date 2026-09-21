@@ -463,3 +463,53 @@
   .lens-card,
   .quarter-record { transition: none !important; }
 }
+
+
+/* COMMON ROOM — Collective traces draw the Quarter */
+.quarter-path {
+  stroke-dasharray: 140;
+  stroke-dashoffset: 140;
+  animation: drawQuarterTrace 1.05s cubic-bezier(.65,0,.2,1) forwards;
+}
+.path-2 { animation-delay: .08s; }
+.path-3 { animation-delay: .15s; }
+.path-4 { animation-delay: .22s; }
+.path-5 { animation-delay: .28s; }
+.path-6 { animation-delay: .34s; }
+.quarter-path-user {
+  stroke: color-mix(in srgb, var(--family-accent, #7B332F) 80%, #1C1B18);
+  stroke-width: .72;
+  animation-delay: .48s;
+}
+.quarter-record {
+  opacity: 0;
+  animation: recordBecomesPlace .6s cubic-bezier(.5,0,.2,1) forwards;
+}
+.quarter-record:nth-of-type(4n+1) { animation-delay: .08s; }
+.quarter-record:nth-of-type(4n+2) { animation-delay: .14s; }
+.quarter-record:nth-of-type(4n+3) { animation-delay: .2s; }
+.quarter-record:nth-of-type(4n) { animation-delay: .26s; }
+.quarter-record.is-current-record { animation-delay: .52s; }
+.quarter-statement {
+  display: grid;
+  gap: 7px;
+}
+.quarter-statement strong {
+  font: 700 8px/1 var(--sans);
+  letter-spacing: .15em;
+}
+.quarter-statement span {
+  font: 500 clamp(16px, 1.7vw, 24px)/1 var(--serif);
+}
+@keyframes drawQuarterTrace {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes recordBecomesPlace {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.45) rotate(0deg); }
+  55% { opacity: .92; }
+  100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quarter-path,
+  .quarter-record { animation: none !important; opacity: 1; stroke-dashoffset: 0; }
+}
