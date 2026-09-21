@@ -854,3 +854,25 @@
   .evidence-stroke,
   .lens-card-paper { transition: none !important; }
 }
+
+.lens-continue {
+  margin-top: 22px;
+  min-height: 44px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(28,27,24,.34);
+  color: var(--room-paper);
+  background: var(--room-ink);
+  font: 700 7px/1 var(--sans);
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+.lens-continue:hover { transform: translateY(-1px); }
+@media (max-width: 620px) {
+  .lens-continue { width: 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lens-continue { transition: none !important; }
+}
