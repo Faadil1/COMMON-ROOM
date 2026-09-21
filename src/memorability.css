@@ -513,3 +513,344 @@
   .quarter-path,
   .quarter-record { animation: none !important; opacity: 1; stroke-dashoffset: 0; }
 }
+
+
+/* ACCESSION APERTURE — behavior-derived card identity
+   The credential is now a physical instrument: one cut, four evidence grammars. */
+.member-card,
+.lens-card {
+  --accession-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 63'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V63H0Z M61 9H98V43L88 54H61V19Z'/%3E%3C/svg%3E");
+}
+
+.member-card {
+  background: transparent;
+  padding-left: clamp(28px, 3.5vw, 42px);
+}
+.member-card::after {
+  background: none;
+}
+.member-card .paper-grain {
+  inset: 0;
+  z-index: 0;
+  opacity: 1;
+  border-radius: inherit;
+  background:
+    linear-gradient(125deg, rgba(244,236,222,.96), rgba(223,210,188,.96) 68%, rgba(233,221,202,.96)),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E");
+  background-blend-mode: multiply;
+  -webkit-mask-image: var(--accession-mask);
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: var(--accession-mask);
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+.accession-rail {
+  position: absolute;
+  z-index: 5;
+  left: 10px;
+  top: 15%;
+  bottom: 12%;
+  width: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--family-accent);
+}
+.accession-rail::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: currentColor;
+  opacity: .38;
+}
+.accession-rail span {
+  position: relative;
+  z-index: 1;
+  padding: 3px 0;
+  background: #e5d9c5;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font: 700 5px/1 var(--sans);
+  letter-spacing: .14em;
+}
+.accession-rail i {
+  position: relative;
+  z-index: 1;
+  width: 5px;
+  height: 5px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: #e5d9c5;
+}
+.card-brand { width: 54%; }
+.card-title-row {
+  display: block;
+  width: 56%;
+  margin-top: clamp(30px, 4.6vw, 46px);
+}
+.card-title-row h3 {
+  font-size: clamp(27px, 3.2vw, 39px);
+  line-height: .9;
+}
+.card-edition {
+  position: absolute;
+  left: 0;
+  top: -16px;
+}
+.card-statement {
+  width: 43%;
+  max-width: 15ch;
+  margin-top: 13px;
+}
+.card-detail {
+  right: auto;
+  left: 49%;
+  bottom: 19px;
+  writing-mode: horizontal-tb;
+  opacity: .68;
+}
+
+.evidence-mark {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  color: var(--family-accent);
+}
+.accession-aperture {
+  position: absolute;
+  left: 61%;
+  top: 14.25%;
+  width: 37%;
+  height: 71.5%;
+  overflow: hidden;
+  clip-path: polygon(0 22%, 8% 0, 100% 0, 100% 75%, 73% 100%, 0 100%);
+  border: 1px solid color-mix(in srgb, var(--family-accent) 62%, rgba(28,27,24,.3));
+  box-shadow:
+    inset 3px 0 0 rgba(28,27,24,.10),
+    inset -2px -2px 0 rgba(247,243,234,.18),
+    0 7px 18px rgba(28,27,24,.13);
+}
+.accession-aperture::before {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  clip-path: inherit;
+  border: 1px solid color-mix(in srgb, var(--family-accent) 22%, transparent);
+}
+.accession-aperture svg {
+  position: absolute;
+  inset: 8% 7% 18%;
+  width: 86%;
+  height: 74%;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+.accession-aperture svg text {
+  fill: currentColor;
+  stroke: none;
+  font: 700 7px/1 var(--sans);
+  letter-spacing: .08em;
+  opacity: .66;
+}
+.evidence-ghost {
+  opacity: .18;
+  stroke-dasharray: 2 3;
+}
+.evidence-stroke {
+  opacity: .18;
+  transition: opacity .25s ease, stroke-width .25s ease;
+}
+.evidence-stroke.is-active {
+  opacity: .92;
+  stroke-width: 2.1;
+}
+.evidence-node {
+  fill: #e4d7c2;
+  stroke: currentColor;
+  opacity: .28;
+}
+.evidence-node.is-active {
+  fill: currentColor;
+  opacity: 1;
+}
+.aperture-code {
+  position: absolute;
+  left: 9%;
+  right: 8%;
+  bottom: 7%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+  font: 700 6px/1 var(--sans);
+  letter-spacing: .12em;
+  color: currentColor;
+  opacity: .76;
+}
+.trace-spine {
+  position: absolute;
+  z-index: 4;
+  left: 7%;
+  right: 3%;
+  top: 66%;
+  height: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--family-accent) 34%, rgba(28,27,24,.18));
+}
+.trace-spine::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: -3px;
+  width: 5px;
+  height: 5px;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  transform: rotate(45deg);
+  opacity: .56;
+}
+.trace-spine span {
+  position: absolute;
+  left: 0;
+  top: -13px;
+  font: 700 5px/1 var(--sans);
+  letter-spacing: .13em;
+  opacity: .6;
+}
+.trace-spine i {
+  position: absolute;
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: #e4d7c2;
+  opacity: .32;
+}
+.trace-spine i:nth-of-type(1) { left: 55%; }
+.trace-spine i:nth-of-type(2) { left: 69%; }
+.trace-spine i:nth-of-type(3) { left: 83%; }
+.trace-spine i.is-active {
+  background: currentColor;
+  opacity: 1;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--family-accent) 13%, transparent);
+}
+.evidence-mark.is-open .evidence-stroke,
+.evidence-mark.is-open .evidence-node,
+.evidence-mark.is-open .trace-spine i {
+  opacity: .12;
+}
+.evidence-mark.is-open .accession-aperture {
+  border-style: dashed;
+  opacity: .72;
+}
+
+/* The Member Lens now uses the same physical aperture instead of a generic translucent card. */
+.lens-card {
+  background: transparent;
+}
+.lens-card::before {
+  display: none;
+}
+.lens-card-paper {
+  position: absolute !important;
+  inset: 0;
+  z-index: 0 !important;
+  border-radius: inherit;
+  background: linear-gradient(120deg, rgba(247,243,234,.97), rgba(238,228,210,.95) 54%, rgba(221,208,186,.97));
+  -webkit-mask-image: var(--accession-mask);
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: var(--accession-mask);
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.58);
+}
+.card-lens-stage.is-dragging .lens-card-paper {
+  opacity: .82;
+}
+.lens-accession-aperture {
+  position: absolute !important;
+  z-index: 4 !important;
+  left: 61%;
+  top: 14.25%;
+  width: 37%;
+  height: 71.5%;
+  clip-path: polygon(0 22%, 8% 0, 100% 0, 100% 75%, 73% 100%, 0 100%);
+  border: 1px solid color-mix(in srgb, var(--family-accent) 78%, #211e19);
+  box-shadow: inset 2px 0 0 rgba(28,27,24,.14);
+}
+.lens-accession-aperture i {
+  position: absolute;
+  left: 12%;
+  right: 10%;
+  top: 56%;
+  height: 1px;
+  background: var(--family-accent);
+  opacity: .62;
+}
+.lens-card::after {
+  left: 7%;
+  right: 4%;
+  bottom: 28%;
+  height: 1px;
+  opacity: .52;
+}
+.lens-reveal-window {
+  padding: 0;
+}
+.lens-reveal-window > span,
+.lens-reveal-window > strong,
+.lens-reveal-window > small {
+  position: absolute;
+  left: 64%;
+  width: 30%;
+  max-width: none;
+}
+.lens-reveal-window > span {
+  top: 18%;
+  font-size: 5px;
+  line-height: 1.2;
+}
+.lens-reveal-window > strong {
+  top: 34%;
+  font-size: clamp(10px, 1.05vw, 15px);
+  line-height: .98;
+}
+.lens-reveal-window > small {
+  bottom: 17%;
+  font-size: 5px;
+  line-height: 1.18;
+}
+.lens-card strong {
+  max-width: 11ch;
+}
+.lens-card-mode {
+  padding-right: 42%;
+}
+
+@media (max-width: 620px) {
+  .member-card { padding-left: 28px; }
+  .card-title-row { width: 58%; margin-top: 26px; }
+  .card-title-row h3 { font-size: 25px; }
+  .card-statement { width: 45%; font-size: 9px; }
+  .card-detail { left: 47%; bottom: 16px; font-size: 6px; }
+  .accession-rail { left: 7px; }
+  .accession-aperture { left: 60.5%; width: 37.5%; }
+  .trace-spine { left: 8%; top: 67%; }
+  .trace-spine span { display: none; }
+  .aperture-code { font-size: 5px; }
+  .lens-reveal-window > strong { font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evidence-stroke,
+  .lens-card-paper { transition: none !important; }
+}
