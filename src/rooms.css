@@ -758,3 +758,149 @@
   .living-record,
   .plate-a { transition: none; }
 }
+
+
+/* COMMON ROOM — Artifact continuity / institutional memory */
+.room-memory-residue {
+  position: absolute;
+  z-index: 7;
+  top: 88px;
+  right: clamp(18px, 3vw, 48px);
+  width: clamp(150px, 14vw, 240px);
+  height: 54px;
+  pointer-events: none;
+  opacity: .5;
+}
+.room-memory-residue i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font: 700 6px/1 var(--sans);
+  letter-spacing: .16em;
+  font-style: normal;
+  opacity: .52;
+}
+.memory-line {
+  position: absolute;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left center;
+}
+.memory-line-a { left: 0; right: 8%; top: 14px; }
+.memory-line-b { left: 28%; right: 0; top: 30px; opacity: .55; }
+.memory-reader { color: var(--reader-700); }
+.memory-reader .memory-line-a { transform: rotate(-2deg); }
+.memory-maker { color: var(--maker-700); }
+.memory-maker .memory-line-a { box-shadow: 0 7px 0 currentColor; }
+.memory-maker .memory-line-b { transform: rotate(90deg); transform-origin: 72% center; }
+.memory-seeker { color: var(--seeker-800); }
+.memory-seeker .memory-line-a { transform: rotate(6deg); }
+.memory-seeker .memory-line-b { transform: rotate(-10deg); }
+.memory-local { color: var(--local-700); }
+.memory-local .memory-line-a { transform: rotate(13deg); }
+.memory-local .memory-line-b { transform: rotate(-7deg); }
+.memory-level-1 { opacity: .28; }
+.memory-level-2 { opacity: .42; }
+.memory-level-3 { opacity: .58; }
+
+.passage-transition {
+  overflow: hidden;
+}
+.passage-transition small {
+  position: absolute;
+  left: 50%;
+  bottom: 10%;
+  transform: translateX(-50%);
+  font: 700 7px/1 var(--sans);
+  letter-spacing: .18em;
+  opacity: .34;
+}
+.passage-trace {
+  position: relative;
+  width: clamp(86px, 11vw, 180px);
+  height: 90px;
+  margin: 0 24px;
+}
+.passage-trace .trace-segment {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform-origin: center;
+}
+.passage-trace .trace-segment-b {
+  opacity: .38;
+}
+.passage-trace .trace-node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(.4);
+  opacity: .25;
+}
+.passage-transition.is-active .trace-segment-a {
+  animation: traceCarryA .66s cubic-bezier(.7,0,.2,1) both;
+}
+.passage-transition.is-active .trace-segment-b {
+  animation: traceCarryB .66s cubic-bezier(.7,0,.2,1) both;
+}
+.passage-transition.is-active .trace-node {
+  animation: traceNode .66s ease both;
+}
+.trace-to-register .trace-segment-b { transform: rotate(90deg); }
+.trace-to-reference .trace-segment-a { transform: rotate(-11deg); }
+.trace-to-reference .trace-segment-b { transform: rotate(18deg); }
+.trace-to-street .trace-segment-a { transform: rotate(8deg); }
+.trace-to-street .trace-segment-b { transform: translateY(16px) rotate(-5deg); }
+.trace-to-card .trace-segment-a { width: 72%; left: 14%; }
+.trace-to-card .trace-segment-b { width: 44%; left: 28%; transform: translateY(12px); }
+.trace-to-city .trace-segment-a { transform: rotate(7deg) scaleX(1.15); }
+.trace-to-city .trace-segment-b { transform: translateY(18px) rotate(-9deg) scaleX(1.05); }
+
+@keyframes traceCarryA {
+  0% { transform: translateX(-34%) scaleX(.2); opacity: 0; }
+  38% { opacity: .9; }
+  100% { opacity: .72; }
+}
+@keyframes traceCarryB {
+  0% { transform: translateX(34%) scaleX(.15); opacity: 0; }
+  42% { opacity: 0; }
+  100% { opacity: .38; }
+}
+@keyframes traceNode {
+  0%, 42% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+  100% { opacity: .5; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (max-width: 760px) {
+  .room-memory-residue {
+    top: 72px;
+    right: 14px;
+    width: 118px;
+    opacity: .3;
+  }
+  .room-memory-residue i { display: none; }
+  .passage-transition {
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 14px;
+  }
+  .passage-transition span,
+  .passage-transition strong { justify-self: center; text-align: center; }
+  .passage-trace { height: 52px; margin: 0; }
+  .passage-transition small { bottom: 12%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .passage-transition.is-active .trace-segment-a,
+  .passage-transition.is-active .trace-segment-b,
+  .passage-transition.is-active .trace-node {
+    animation: none !important;
+  }
+}
