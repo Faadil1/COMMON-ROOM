@@ -876,3 +876,226 @@
 @media (prefers-reduced-motion: reduce) {
   .lens-continue { transition: none !important; }
 }
+
+
+/* ACCESSION STRATA — causal depth
+   You do not receive a card; you accumulate one. */
+.member-card-stack {
+  --accession-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 63'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V63H0Z M61 9H98V43L88 54H61V19Z'/%3E%3C/svg%3E");
+  position: relative;
+  width: min(100%, 720px);
+  isolation: isolate;
+  transform-style: preserve-3d;
+  overflow: visible;
+}
+.member-card-stack > .member-card {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+}
+.accession-strata {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+.strata-layer {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--strata-accent) 66%, rgba(247,243,234,.2));
+  border-radius: 19px;
+  background:
+    linear-gradient(118deg,
+      color-mix(in srgb, var(--strata-accent) 14%, #e8ddc9),
+      rgba(247,243,234,.16) 54%,
+      color-mix(in srgb, var(--strata-accent) 22%, #1c1b18));
+  box-shadow:
+    0 2px 0 color-mix(in srgb, var(--strata-accent) 42%, transparent),
+    0 14px 28px rgba(0,0,0,.08);
+  -webkit-mask-image: var(--accession-mask);
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: var(--accession-mask);
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  opacity: .72;
+  transform:
+    translate3d(
+      calc(var(--strata-index) * 9px),
+      calc(var(--strata-index) * 8px),
+      calc(var(--strata-index) * -10px)
+    )
+    rotateZ(calc(var(--strata-index) * .18deg));
+  transform-origin: 50% 50%;
+}
+.strata-layer::before {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  opacity: .5;
+  mix-blend-mode: multiply;
+}
+.strata-layer i {
+  position: absolute;
+  right: 4%;
+  top: 18%;
+  width: 31%;
+  height: 58%;
+  clip-path: polygon(0 20%, 8% 0, 100% 0, 100% 74%, 72% 100%, 0 100%);
+  border: 1px solid color-mix(in srgb, var(--strata-accent) 74%, transparent);
+}
+.strata-layer b {
+  position: absolute;
+  right: 10px;
+  bottom: 5px;
+  max-width: 42%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: color-mix(in srgb, var(--strata-accent) 76%, #1c1b18);
+  font: 700 5px/1 var(--sans);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  opacity: .78;
+}
+.strata-reader::before {
+  background: repeating-linear-gradient(0deg, transparent 0 17px, var(--strata-accent) 17px 18px);
+}
+.strata-maker::before {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 24px, var(--strata-accent) 24px 25px),
+    repeating-linear-gradient(0deg, transparent 0 24px, var(--strata-accent) 24px 25px);
+}
+.strata-seeker::before {
+  background:
+    radial-gradient(circle at 22% 72%, var(--strata-accent) 0 2px, transparent 3px),
+    radial-gradient(circle at 51% 54%, var(--strata-accent) 0 2px, transparent 3px),
+    radial-gradient(circle at 82% 26%, var(--strata-accent) 0 2px, transparent 3px),
+    linear-gradient(145deg, transparent 0 38%, var(--strata-accent) 39% 40%, transparent 41% 100%);
+}
+.strata-local::before {
+  background:
+    linear-gradient(28deg, transparent 0 47%, var(--strata-accent) 48% 49%, transparent 50%),
+    linear-gradient(112deg, transparent 0 56%, var(--strata-accent) 57% 58%, transparent 59%);
+}
+.strata-secret {
+  border-style: dashed;
+  opacity: .52;
+}
+.strata-secret::after {
+  content: 'FOUND / HIDDEN STRATUM';
+  position: absolute;
+  left: 14px;
+  bottom: 7px;
+  color: var(--strata-accent);
+  font: 700 5px/1 var(--sans);
+  letter-spacing: .13em;
+  opacity: .74;
+}
+.member-card-stack.is-resolved .strata-layer {
+  animation: accessionStrataResolve 1.45s cubic-bezier(.2,.72,.16,1) both;
+  animation-delay: calc(var(--strata-index) * 55ms);
+}
+.member-card-stack.is-resolved:hover .strata-layer {
+  transform:
+    translate3d(
+      calc(var(--strata-index) * 13px),
+      calc(var(--strata-index) * 12px),
+      calc(var(--strata-index) * -14px)
+    )
+    rotateZ(calc(var(--strata-index) * .28deg));
+}
+.strata-index {
+  position: absolute;
+  z-index: 12;
+  right: 2px;
+  bottom: -33px;
+  color: rgba(247,243,234,.46);
+  font: 700 6px/1 var(--sans);
+  letter-spacing: .13em;
+  pointer-events: none;
+}
+.record-object .member-card-stack {
+  transform: rotateY(-5deg) rotateX(2deg);
+  transition: transform .45s ease;
+}
+.record-object .member-card-stack > .member-card {
+  transform: none;
+}
+.record-object:hover .member-card-stack {
+  transform: rotateY(-1deg) rotateX(.5deg) translateY(-3px);
+}
+.record-object:hover .member-card-stack > .member-card {
+  transform: none;
+}
+.record-object .record-ledger {
+  margin-top: 58px;
+  gap: 18px;
+}
+@keyframes accessionStrataResolve {
+  0% {
+    opacity: 0;
+    transform: translate3d(0,0,-2px) rotateZ(0deg);
+  }
+  42% {
+    opacity: .82;
+    transform:
+      translate3d(
+        calc(var(--strata-index) * 17px),
+        calc(var(--strata-index) * 16px),
+        calc(var(--strata-index) * -18px)
+      )
+      rotateZ(calc(var(--strata-index) * .42deg));
+  }
+  100% {
+    opacity: .72;
+    transform:
+      translate3d(
+        calc(var(--strata-index) * 9px),
+        calc(var(--strata-index) * 8px),
+        calc(var(--strata-index) * -10px)
+      )
+      rotateZ(calc(var(--strata-index) * .18deg));
+  }
+}
+
+@media (max-width: 760px) {
+  .strata-layer {
+    transform:
+      translate3d(
+        calc(var(--strata-index) * 5px),
+        calc(var(--strata-index) * 5px),
+        calc(var(--strata-index) * -6px)
+      );
+  }
+  .member-card-stack.is-resolved:hover .strata-layer {
+    transform:
+      translate3d(
+        calc(var(--strata-index) * 7px),
+        calc(var(--strata-index) * 7px),
+        calc(var(--strata-index) * -8px)
+      );
+  }
+  .strata-index {
+    right: 0;
+    bottom: -25px;
+    max-width: 72%;
+    text-align: right;
+    line-height: 1.3;
+  }
+  .record-object .record-ledger {
+    margin-top: 48px;
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-card-stack.is-resolved .strata-layer {
+    animation: none !important;
+  }
+  .member-card-stack,
+  .strata-layer {
+    transition: none !important;
+  }
+}
