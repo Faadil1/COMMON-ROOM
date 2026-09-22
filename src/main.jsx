@@ -278,9 +278,9 @@ function CardLensReveal({ family, actions, secrets, navigate }) {
   return (
     <section id="member-lens" className={`lens-section family-${family}`}>
       <div className="lens-copy">
-        <span className="room-kicker">MEMBER OPTICS / HIDDEN LAYER</span>
+        <span className="room-kicker">MEMBER OPTICS / ACCESSION STRATA</span>
         <h2>The card changes<br /><em>what you can see.</em></h2>
-        <p>Move the card across the archive. Only its accession aperture reveals the hidden layer: the same opening that carries your traces becomes an instrument for provenance and memory.</p>
+        <p>Your record has accumulated layers from what you actually did. Move the card across the archive: the accession aperture cuts through those strata and reveals the memory beneath.</p>
         <div className="lens-proof">
           <span>{actions.length} REGISTERED MARKS</span>
           <span>{secrets.length}/4 HIDDEN TRACES</span>
@@ -370,6 +370,65 @@ function Monogram() {
   return (
     <div className="monogram" aria-label="North Quarter mark">
       <span>N</span><span>Q</span>
+    </div>
+  )
+}
+
+
+function AccessionStrata({ actions = [], secrets = [] }) {
+  const visibleActions = actions.slice(-4)
+  const visibleSecrets = secrets.slice(-1)
+  const layers = [
+    ...visibleActions.map((id) => ({
+      id,
+      family: ACTIONS[id]?.family || 'reader',
+      label: ACTIONS[id]?.label || 'Registered mark',
+      kind: 'action',
+    })),
+    ...visibleSecrets.map((id) => ({
+      id: `secret-${id}`,
+      family: SECRETS[id]?.family || 'reader',
+      label: SECRETS[id]?.label || 'Hidden trace',
+      kind: 'secret',
+    })),
+  ]
+
+  if (!layers.length) return null
+
+  return (
+    <div className="accession-strata" aria-hidden="true">
+      {layers.map((layer, index) => (
+        <span
+          key={layer.id}
+          className={`strata-layer strata-${layer.family} ${layer.kind === 'secret' ? 'strata-secret' : ''}`}
+          style={{
+            '--strata-index': index + 1,
+            '--strata-count': layers.length,
+            '--strata-accent': FAMILY[layer.family]?.accent || FAMILY.reader.accent,
+          }}
+        >
+          <i />
+          <b>{layer.label}</b>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function StratifiedMemberCard({ family, actions, secrets, resolved, unregistered }) {
+  const visibleLayerCount = Math.min(actions.length, 4) + Math.min(secrets.length, 1)
+  return (
+    <div
+      className={`member-card-stack family-${family} ${resolved ? 'is-resolved' : ''}`}
+      style={{ '--family-accent': FAMILY[family].accent }}
+    >
+      {resolved && <AccessionStrata actions={actions} secrets={secrets} />}
+      <MemberCard family={family} actions={actions} secrets={secrets} resolved={resolved} unregistered={unregistered} />
+      {resolved && (
+        <span className="strata-index" aria-hidden="true">
+          ACCESSION STRATA / {String(visibleLayerCount).padStart(2, '0')} VISIBLE / {String(actions.length + secrets.length).padStart(2, '0')} RECORDED
+        </span>
+      )}
     </div>
   )
 }
@@ -665,10 +724,12 @@ function RecordRoom({ path, navigate, record, reset }) {
         </div>
         <div className="record-object">
           <div className="record-light" />
-          <MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} />
+          <StratifiedMemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} />
           <span className="hidden-emboss">YOU WERE HERE.</span>
           <div className="record-ledger">
-            <span>{record.actions.length} REGISTERED MARKS</span><span>{record.secrets.length}/4 HIDDEN TRACES</span>
+            <span>{record.actions.length} REGISTERED MARKS</span>
+            <span>{Math.min(record.actions.length, 4) + Math.min(record.secrets.length, 1)} VISIBLE STRATA</span>
+            <span>{record.secrets.length}/4 HIDDEN TRACES</span>
           </div>
           {record.secrets.length > 0 && <div className="secret-ledger">{record.secrets.map((id) => <span key={id}>{SECRETS[id].glyph} / {SECRETS[id].label}</span>)}</div>}
         </div>
