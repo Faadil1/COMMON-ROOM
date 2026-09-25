@@ -43,34 +43,52 @@ function unpackSignature(text) {
   return strokes
 }
 
-export function encodeCard(record) {
-  const payload = {
-    a: record.actions.map((id) => ACTION_IDS.indexOf(id).toString(16)).join(''),
-    s: SECRET_IDS.reduce((mask, id, i) => (record.secrets.includes(id) ? mask | (1 << i) : mask), 0),
-    t: (record.startedAt || 0).toString(36),
-    i: (record.issuedAt || 0).toString(36),
-    n: record.name || '',
-    g: packSignature(record.signature),
-  }
-  return b64u(new TextEncoder().encode(JSON.stringify(payload)))
+// Compact code: 1<actions hex>.<secret mask>.<started b36>.<issued b36>.<name b64u>[.<signature>]
+// Short enough for a QR code on a printed card when the signature is left out.
+export function encodeCard(record, { signature = true } = {}) {
+  const parts = [
+    `1${record.actions.map((id) => ACTION_IDS.indexOf(id).toString(16)).join('')}`,
+    SECRET_IDS.reduce((mask, id, i) => (record.secrets.includes(id) ? mask | (1 << i) : mask), 0).toString(16),
+    (record.startedAt || 0).toString(36),
+    (record.issuedAt || 0).toString(36),
+    record.name ? b64u(new TextEncoder().encode(record.name)) : '',
+  ]
+  const sig = signature ? packSignature(record.signature) : ''
+  if (sig) parts.push(sig)
+  return parts.join('.')
+}
+
+function decodeLegacy(code) {
+  const p = JSON.parse(new TextDecoder().decode(unb64u(code)))
+  return { a: String(p.a || ''), s: Number(p.s) || 0, t: p.t, i: p.i, n: String(p.n || ''), g: p.g }
+}
+
+function decodeCompact(code) {
+  const [head, s, t, i, n, g] = code.split('.')
+  return { a: head.slice(1), s: parseInt(s || '0', 16) || 0, t, i, n: n ? new TextDecoder().decode(unb64u(n)) : '', g }
 }
 
 export function decodeCard(code) {
   try {
-    const p = JSON.parse(new TextDecoder().decode(unb64u(code)))
-    const actions = [...String(p.a || '')].map((c) => ACTION_IDS[parseInt(c, 16)]).filter(Boolean)
-    const unique = [...new Set(actions)]
+    const p = /^1[0-9a-f]*\./.test(code) ? decodeCompact(code) : decodeLegacy(code)
+    const actions = [...new Set([...p.a].map((c) => ACTION_IDS[parseInt(c, 16)]).filter(Boolean))]
     return {
-      actions: unique,
-      secrets: SECRET_IDS.filter((_, i) => (Number(p.s) || 0) & (1 << i)),
+      actions,
+      secrets: SECRET_IDS.filter((_, i) => p.s & (1 << i)),
       startedAt: parseInt(p.t || '0', 36) || null,
       issuedAt: parseInt(p.i || '0', 36) || null,
-      name: String(p.n || '').slice(0, 28),
+      name: p.n.slice(0, 28),
       signature: unpackSignature(p.g),
       times: {},
+      visits: [],
       stampSeen: true,
     }
   } catch {
     return null
   }
+}
+
+export function shareUrl(record, options) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://common-room-2l0.pages.dev'
+  return `${origin}/card/${encodeCard(record, options)}`
 }

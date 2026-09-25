@@ -5,16 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/copy-og-fonts.mjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@expo-google-fonts/courier-prime": "^0.4.1",
+    "@expo-google-fonts/newsreader": "^0.4.1",
+    "@expo-google-fonts/public-sans": "^0.4.2",
     "@fontsource-variable/newsreader": "^5.3.0",
     "@fontsource/courier-prime": "^5.3.0",
     "@fontsource/public-sans": "^5.3.0",
+    "@resvg/resvg-wasm": "^2.6.2",
     "@vitejs/plugin-react": "^6.1.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.48.0",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.186.1",

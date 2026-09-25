@@ -19,12 +19,15 @@ import '@fontsource/public-sans/800.css'
 import '@fontsource/public-sans/900.css'
 import './cards.css'
 import './rooms2.css'
+import './makingOf.css'
 import { StacksScene, WorkshopScene, IndexScene, QuarterScene } from './rooms.jsx'
 import { play, soundEnabled, setSoundEnabled, onSoundChange } from './sound.js'
-import { encodeCard, decodeCard } from './share.js'
+import { encodeCard, decodeCard, shareUrl } from './share.js'
+import { RESOLVE_AT, getAccessionNumber, formatIssueDate, getOutcome } from './recordLogic.js'
 import { CardFront, CardBack, CardObject, backEntries } from './cardArt.jsx'
 
 const Card3D = lazy(() => import('./card3d.jsx'))
+const MakingOf = lazy(() => import('./makingOf.jsx'))
 function supports3D() {
   try {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false
@@ -136,8 +139,7 @@ const TRACE_FORM = {
 
 const STORAGE_KEY = 'common-room-member-record-v2'
 
-const EMPTY_RECORD = { actions: [], secrets: [], name: '', signature: [], startedAt: null, issuedAt: null, stampSeen: false, times: {} }
-const RESOLVE_AT = 3
+const EMPTY_RECORD = { actions: [], secrets: [], name: '', signature: [], startedAt: null, issuedAt: null, stampSeen: false, times: {}, visits: [] }
 
 function safeLoadRecord() {
   try {
@@ -153,34 +155,12 @@ function safeLoadRecord() {
       issuedAt: Number.isFinite(stored.issuedAt) ? stored.issuedAt : (actions.length >= RESOLVE_AT ? Date.now() : null),
       stampSeen: Boolean(stored.stampSeen),
       times: stored.times && typeof stored.times === 'object' ? stored.times : {},
+      visits: Array.isArray(stored.visits) ? stored.visits.filter(Number.isFinite).slice(-24) : [],
+      wall: stored.wall && typeof stored.wall.id === 'string' && typeof stored.wall.token === 'string' ? stored.wall : null,
     }
   } catch {
     return { ...EMPTY_RECORD }
   }
-}
-
-// The accession number is fixed at the moment of issue: the visit's start time
-// plus the three marks that resolved the record. Same library, different residue.
-function hashString(input) {
-  let h = 0x811c9dc5
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return h >>> 0
-}
-
-function getAccessionNumber(record) {
-  if (record.actions.length < RESOLVE_AT) return 'NQ / OPEN'
-  const seed = `${record.startedAt || 0}|${record.actions.slice(0, RESOLVE_AT).join(',')}`
-  const n = String(hashString(seed) % 1000000).padStart(6, '0')
-  return `NQ ${n.slice(0, 3)} ${n.slice(3)}`
-}
-
-function formatIssueDate(ts) {
-  const date = ts ? new Date(ts) : new Date()
-  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  return `${String(date.getDate()).padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`
 }
 
 function signaturePath(strokes) {
@@ -209,31 +189,6 @@ function mulberry32(seed) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
-}
-
-function getFamilyScores(actions) {
-  const score = { reader: 0, maker: 0, seeker: 0, local: 0 }
-  actions.forEach((id) => {
-    const action = ACTIONS[id]
-    if (action) score[action.family] += 1
-  })
-  return score
-}
-
-function getOutcome(actions) {
-  const score = getFamilyScores(actions)
-  const maxScore = Math.max(...Object.values(score))
-  if (maxScore <= 0) return 'reader'
-
-  const leaders = Object.keys(score).filter((family) => score[family] === maxScore)
-  if (leaders.length === 1) return leaders[0]
-
-  // Ties belong to the most recent behaviour, never to object-key order.
-  for (let index = actions.length - 1; index >= 0; index -= 1) {
-    const family = ACTIONS[actions[index]]?.family
-    if (family && leaders.includes(family)) return family
-  }
-  return leaders[0]
 }
 
 const LENS_CONTENT = {
@@ -429,13 +384,31 @@ function StratifiedMemberCard({ family, actions, secrets, resolved, children }) 
   )
 }
 
+// A visit counts as a renewal when it happens at least six hours after the card was issued.
+const VISIT_GAP = 6 * 60 * 60 * 1000
+function renewalsOf(record) {
+  if (!record.issuedAt) return []
+  return (record.visits || []).filter((ts) => ts - record.issuedAt > VISIT_GAP)
+}
+
 function ownerFromRecord(record) {
+  const renewals = renewalsOf(record)
+  const days = record.issuedAt ? (Date.now() - record.issuedAt) / 86400000 : 0
+  const resolved = record.actions.length >= RESOLVE_AT
   return {
     name: record.name,
     signature: record.signature,
     number: getAccessionNumber(record),
     issued: formatIssueDate(record.issuedAt),
+    renewals: renewals.length,
+    renewed: renewals.length ? formatIssueDate(renewals[renewals.length - 1]) : null,
+    wear: Math.min(1, renewals.length * 0.18 + Math.max(0, days) / 90),
+    qr: resolved ? shareUrl(record, { signature: false }) : null,
   }
+}
+
+function recordEntries(record) {
+  return backEntries({ actions: record.actions, secrets: record.secrets, times: record.times, labels: cardLabels(), accents: CARD_ACCENTS, fallback: record.issuedAt || record.startedAt, renewals: renewalsOf(record) })
 }
 
 function usePath() {
@@ -455,6 +428,14 @@ function readStorage() {
 function useMemberRecord() {
   const [record, setRecord] = useState(readStorage)
   const [lastMark, setLastMark] = useState(null)
+  useEffect(() => {
+    setRecord((current) => {
+      if (!current.actions.length) return current
+      const last = current.visits[current.visits.length - 1] || 0
+      const now = Date.now()
+      return now - last > VISIT_GAP ? { ...current, visits: [...current.visits, now].slice(-24) } : current
+    })
+  }, [])
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(record)) } catch { /* private mode: keep in memory */ }
   }, [record])
@@ -483,8 +464,9 @@ function useMemberRecord() {
   const setName = (name) => setRecord((current) => ({ ...current, name: name.slice(0, 28) }))
   const setSignature = (signature) => setRecord((current) => ({ ...current, signature }))
   const markStampSeen = () => setRecord((current) => ({ ...current, stampSeen: true }))
-  const reset = () => { setRecord({ ...EMPTY_RECORD }); setLastMark(null) }
-  return { record, lastMark, addAction, addSecret, setName, setSignature, markStampSeen, reset }
+  const setWall = (wall) => setRecord((current) => ({ ...current, wall }))
+  const reset = () => { setRecord((current) => ({ ...EMPTY_RECORD, wall: null, pastWall: current.wall || current.pastWall || null })); setLastMark(null) }
+  return { record, lastMark, addAction, addSecret, setName, setSignature, markStampSeen, setWall, reset }
 }
 
 function SiteHeader({ path, navigate, record }) {
@@ -579,7 +561,15 @@ function RoomShell({ path, navigate, record, children, tone = 'paper' }) {
 }
 
 function LobbyFan({ record, resolved }) {
-  const fan = SPECIMENS.filter((sp) => !resolved || sp.family !== getOutcome(record.actions))
+  // The fan is decorative: draw it after first paint so the lobby shows up immediately.
+  const [showFan, setShowFan] = useState(false)
+  useEffect(() => {
+    const idle = window.requestIdleCallback || ((fn) => window.setTimeout(fn, 250))
+    const cancel = window.cancelIdleCallback || window.clearTimeout
+    const id = idle(() => setShowFan(true), { timeout: 900 })
+    return () => cancel(id)
+  }, [])
+  const fan = showFan ? SPECIMENS.filter((sp) => !resolved || sp.family !== getOutcome(record.actions)) : []
   return (
     <div className={`nq-fan ${resolved ? 'is-resolved' : ''}`}>
       <div className="nq-fan-back" aria-hidden="true">
@@ -613,7 +603,7 @@ function Lobby({ path, navigate, record }) {
           <span className="room-kicker">{resolved ? `WELCOME BACK / ${getAccessionNumber(record)}` : 'THE LIVING COLLECTION / MEMBER ENTRY'}</span>
           <h1>COMMON<br /><em>ROOM</em></h1>
           {resolved && firstName
-            ? <p className="lobby-remembered">The library remembers you, <em>{firstName}</em>. {record.actions.length} marks, {record.secrets.length} hidden trace{record.secrets.length === 1 ? '' : 's'}, one card.</p>
+            ? <p className="lobby-remembered">The library remembers you, <em>{firstName}</em>. {record.actions.length} marks, {record.secrets.length} hidden trace{record.secrets.length === 1 ? '' : 's'}, one card.{renewalsOf(record).length ? ` Visit ${renewalsOf(record).length + 1}: your card was stamped renewed.` : ''}</p>
             : <p>You don’t get a library card here. You <em>accumulate</em> one, from what you actually do inside.</p>}
           <button className="room-primary room-primary-light" onClick={() => navigate(started ? (resolved ? '/record' : nextRoom(record)) : '/stacks')}>
             {!started ? 'Enter the library' : resolved ? 'Open your record' : 'Continue your visit'} <ArrowRight size={17} />
@@ -748,13 +738,79 @@ function ExportFrame({ family, record, frameRef }) {
   const owner = ownerFromRecord(record)
   return (
     <div className="nq-export-host" aria-hidden="true" ref={frameRef}>
-      <div data-print="back" style={{ width: 856 }}><CardBack family={family} owner={owner} entries={backEntries({ actions: record.actions, secrets: record.secrets, times: record.times, labels: cardLabels(), accents: CARD_ACCENTS, fallback: record.issuedAt })} /></div>
+      <div data-print="back" style={{ width: 856 }}><CardBack family={family} owner={owner} entries={recordEntries(record)} qr={owner.qr} /></div>
       <div data-print="front" style={{ width: 856 }}><CardFront family={family} actions={record.actions} secrets={record.secrets} owner={owner} stamp /></div>
     </div>
   )
 }
 
-function RecordRoom({ path, navigate, record, reset, setName, setSignature, markStampSeen }) {
+function WallConsent({ record, setWall }) {
+  const [agree, setAgree] = useState(false)
+  const [state, setState] = useState(null)
+  const code = encodeCard(record)
+  const call = async (method, url, body) => {
+    const res = await fetch(url, {
+      method,
+      headers: { 'content-type': 'application/json', ...(record.wall ? { 'x-wall-token': record.wall.token } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    const data = await res.json().catch(() => ({}))
+    return { ok: res.ok, status: res.status, data }
+  }
+  const explain = (status, data) => {
+    if (status === 503) return 'The shared wall isn’t switched on yet. Your card is still yours, here.'
+    if (data?.error === 'name-not-allowed') return 'That name can’t go on a public wall. Try just your first name.'
+    if (data?.error === 'already-on-wall') return 'This card is already on the wall.'
+    if (status === 429) return 'Too many cards from here in the last hour. Try again later.'
+    return 'Couldn’t reach the wall. Try again in a moment.'
+  }
+  const add = async () => {
+    setState({ busy: true })
+    try {
+      const { ok, status, data } = await call('POST', '/api/wall', { code })
+      if (ok) { setWall({ id: data.id, token: data.token }); play('stamp'); setState({ msg: 'Your card is on the Living Collection wall.' }) } else setState({ msg: explain(status, data) })
+    } catch { setState({ msg: explain(0) }) }
+  }
+  const update = async () => {
+    setState({ busy: true })
+    try {
+      const { ok, status, data } = await call('PUT', `/api/wall/${record.wall.id}`, { code })
+      setState({ msg: ok ? 'The wall now shows your latest card.' : explain(status, data) })
+    } catch { setState({ msg: explain(0) }) }
+  }
+  const remove = async () => {
+    setState({ busy: true })
+    try {
+      const { ok, status, data } = await call('DELETE', `/api/wall/${record.wall.id}`)
+      if (ok || status === 404) { setWall(null); setState({ msg: 'Your card was taken down from the wall.' }) } else setState({ msg: explain(status, data) })
+    } catch { setState({ msg: explain(0) }) }
+  }
+  return (
+    <div className="nq-wallconsent">
+      <span className="nq-desk-kicker">THE LIVING COLLECTION</span>
+      {record.wall ? (
+        <>
+          <p>Your card hangs on the shared wall, next to other visitors’ cards.</p>
+          <div className="nq-wallconsent-actions">
+            <button type="button" className="room-secondary" onClick={update} disabled={state?.busy}>Update it</button>
+            <button type="button" className="room-secondary" onClick={remove} disabled={state?.busy}>Take it down</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <label className="nq-wallconsent-check">
+            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+            <span>Put my card on the public wall. Anyone visiting will see its marks, dates{record.name ? ', the name I wrote' : ''}{record.signature.length ? ' and my signature' : ''}. I can take it down any time.</span>
+          </label>
+          <button type="button" className="room-secondary" onClick={add} disabled={!agree || state?.busy}>{state?.busy ? 'Hanging it…' : 'Add my card to the wall'}</button>
+        </>
+      )}
+      {state?.msg && <p className="nq-wallconsent-msg" role="status">{state.msg}</p>}
+    </div>
+  )
+}
+
+function RecordRoom({ path, navigate, record, reset, setName, setSignature, markStampSeen, setWall }) {
   const family = getOutcome(record.actions)
   const meta = FAMILY[family]
   const resolved = record.actions.length >= RESOLVE_AT
@@ -834,9 +890,10 @@ function RecordRoom({ path, navigate, record, reset, setName, setSignature, mark
                 <input value={record.name} maxLength={28} placeholder="Your name" onChange={(event) => setName(event.target.value)} autoComplete="name" />
               </label>
               <SignaturePad strokes={record.signature} onChange={setSignature} />
-              <p className="nq-desk-note">Stays in this browser. Nothing is sent anywhere.</p>
+              <p className="nq-desk-note">Stays in this browser, unless you choose to add your card to the wall below.</p>
             </div>
           )}
+          {resolved && <WallConsent record={record} setWall={setWall} />}
           <div className="record-actions">
             {resolved
               ? <button className="room-primary room-primary-light" onClick={download} disabled={exporting}><Download size={16} /> {exporting ? 'Printing your card…' : 'Take your card home'}</button>
@@ -856,7 +913,7 @@ function RecordRoom({ path, navigate, record, reset, setName, setSignature, mark
                 family={family}
                 record={record}
                 owner={ownerFromRecord(record)}
-                entries={backEntries({ actions: record.actions, secrets: record.secrets, times: record.times, labels: cardLabels(), accents: CARD_ACCENTS, fallback: record.issuedAt })}
+                entries={recordEntries(record)}
                 ceremony={ceremony3D}
                 fallback={<RecordCard record={record} stamp={showStamp} flippable={false} tilt={false} />}
               />
@@ -910,6 +967,7 @@ function WallTile({ entry, isYou, onOpen, index }) {
   return (
     <button type="button" className={`nq-tile2 ${isYou ? 'is-you' : ''}`} style={{ '--family-accent': FAMILY[entry.family].accent, '--d': `${Math.min(index, 20) * 35}ms` }} onClick={() => onOpen(entry)} aria-label={`${isYou ? 'Your card' : `${entry.name}'s card`}: ${FAMILY[entry.family].title}, ${entry.number}. Open`}>
       {isYou && <span className="nq-tile-you">YOUR RECORD</span>}
+      {entry.specimen && <span className="nq-tile-specimen">SPECIMEN</span>}
       <CardFront family={entry.family} actions={entry.actions} secrets={entry.secrets || []} owner={{ name: entry.name, number: entry.number, issued: entry.issued || '24 SEP 2026', signature: entry.strokes }} detail={0.45} stamp={isYou} />
     </button>
   )
@@ -935,6 +993,38 @@ function CardModal({ entry, onClose }) {
   )
 }
 
+// The shared Living Collection (Cloudflare D1). When it isn't configured, the wall falls back to specimens.
+function useLiveWall(refreshKey) {
+  const [wall, setWall] = useState({ status: 'loading', cards: [], total: 0 })
+  useEffect(() => {
+    let alive = true
+    fetch('/api/wall?limit=60', { headers: { accept: 'application/json' } })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+      .then((data) => { if (alive) setWall({ status: 'live', cards: data.cards || [], total: data.total || 0 }) })
+      .catch(() => { if (alive) setWall({ status: 'offline', cards: [], total: 0 }) })
+    return () => { alive = false }
+  }, [refreshKey])
+  return wall
+}
+
+function entryFromCode(id, code, createdAt) {
+  const rec = decodeCard(code)
+  if (!rec || rec.actions.length < RESOLVE_AT) return null
+  return {
+    key: `live-${id}`,
+    liveId: id,
+    family: getOutcome(rec.actions),
+    actions: rec.actions,
+    secrets: rec.secrets,
+    name: rec.name,
+    strokes: rec.signature,
+    number: getAccessionNumber(rec),
+    issuedAt: rec.issuedAt,
+    issued: formatIssueDate(rec.issuedAt),
+    added: createdAt,
+  }
+}
+
 function CollectionRoom({ path, navigate, record }) {
   const [filter, setFilter] = useState('all')
   const [view, setView] = useState('wall')
@@ -956,7 +1046,18 @@ function CollectionRoom({ path, navigate, record }) {
     issued: formatIssueDate(record.issuedAt),
     hidden: record.secrets.length > 0,
   } : null
-  const all = you ? [...base.slice(0, 12), you, ...base.slice(12, 27)] : base
+  const live = useLiveWall(record.wall?.id || '')
+  const liveEntries = useMemo(() => live.cards.map((c) => entryFromCode(c.id, c.code, c.created_at)).filter(Boolean), [live.cards])
+  let all
+  if (live.status === 'live' && liveEntries.length) {
+    const mine = liveEntries.find((e) => e.liveId === record.wall?.id)
+    const others = liveEntries.filter((e) => e !== mine)
+    const own = mine ? { ...mine, key: 'you' } : you
+    const specimens = base.slice(0, Math.max(0, 8 - liveEntries.length)).map((e) => ({ ...e, specimen: true }))
+    all = [...(own ? [own] : []), ...others, ...specimens]
+  } else {
+    all = you ? [...base.slice(0, 12), you, ...base.slice(12, 27)] : base
+  }
   const wall = all.filter((entry) => filter === 'all' || filter === entry.family)
 
   return (
@@ -980,6 +1081,7 @@ function CollectionRoom({ path, navigate, record }) {
 
       {view === 'wall' ? (
         <section className="nq-wall">
+          {live.status === 'live' && <p className="nq-wall-note nq-wall-live">{live.total ? `${live.total} ${live.total === 1 ? 'visitor has' : 'visitors have'} added their card to this wall.` : 'No visitor has added a card yet. Be the first, from your Member Record.'}{resolved && !record.wall ? ' Add yours from your Member Record.' : ''}</p>}
           {!resolved && <p className="nq-wall-note">Your card isn’t on the wall yet. Leave {RESOLVE_AT - record.actions.length} more mark{RESOLVE_AT - record.actions.length > 1 ? 's' : ''} in the rooms and it will be accessioned here.</p>}
           {wall.map((entry, index) => <WallTile key={entry.key} entry={entry} index={index} isYou={entry.key === 'you'} onOpen={setOpenEntry} />)}
         </section>
@@ -988,6 +1090,7 @@ function CollectionRoom({ path, navigate, record }) {
       )}
 
       {openEntry && <CardModal entry={openEntry} onClose={() => setOpenEntry(null)} />}
+      <p className="nq-makingof"><button className="nq-makingof-link" onClick={() => navigate('/making-of')}>THE MAKING OF COMMON ROOM →</button></p>
       <footer className="collection-room-footer"><div><Monogram /><span>NORTH QUARTER PUBLIC LIBRARY</span></div><strong>YOUR LIBRARY. YOUR WAY IN.</strong><button onClick={() => navigate('/')}>RETURN TO COMMON ROOM</button></footer>
     </RoomShell>
   )
@@ -999,7 +1102,7 @@ function RecordCard({ record, stamp = false, landing = false, flippable = true, 
   const family = getOutcome(record.actions)
   const owner = ownerFromRecord(record)
   const front = <CardFront family={family} open={!resolved} actions={record.actions} secrets={record.secrets} owner={owner} stamp={stamp && resolved} />
-  const back = <CardBack family={family} open={!resolved} owner={owner} entries={backEntries({ actions: record.actions, secrets: record.secrets, times: record.times, labels: cardLabels(), accents: CARD_ACCENTS, fallback: record.issuedAt || record.startedAt })} />
+  const back = <CardBack family={family} open={!resolved} owner={owner} entries={recordEntries(record)} qr={owner.qr} />
   return <CardObject front={front} back={back} flippable={flippable} tilt={tilt} landing={landing} />
 }
 
@@ -1126,7 +1229,7 @@ function useMarkFlight(lastMark) {
 
 function App() {
   const [path, setPath] = usePath()
-  const { record, lastMark, addAction, addSecret, setName, setSignature, markStampSeen, reset } = useMemberRecord()
+  const { record, lastMark, addAction, addSecret, setName, setSignature, markStampSeen, setWall, reset } = useMemberRecord()
   const [transition, setTransition] = useState(null)
   useMarkFlight(lastMark)
 
@@ -1146,7 +1249,7 @@ function App() {
     window.setTimeout(() => setTransition(null), 720)
   }
 
-  const props = { path, navigate, record, addAction, addSecret, setName, setSignature, markStampSeen, reset }
+  const props = { path, navigate, record, addAction, addSecret, setName, setSignature, markStampSeen, setWall, reset }
   let page
   if (path === '/') page = <Lobby {...props} />
   else if (path === '/stacks') page = <StacksRoom {...props} />
@@ -1156,6 +1259,7 @@ function App() {
   else if (path === '/record') page = <RecordRoom {...props} />
   else if (path === '/collection') page = <CollectionRoom {...props} />
   else if (path === '/cards') page = <SpecimenBoard />
+  else if (path === '/making-of') page = <Suspense fallback={<main className="mo" />}><MakingOf navigate={navigate} /></Suspense>
   else if (path.startsWith('/card/')) page = <SharedCardPage code={path.slice(6)} navigate={navigate} />
   else page = <NotFound navigate={navigate} />
 

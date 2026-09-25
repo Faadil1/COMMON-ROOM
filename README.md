@@ -292,6 +292,37 @@ The Member Record is now drawn as one SVG object (`src/cardArt.jsx`) and reused 
 
 ---
 
+## Living Collection v4 — the card travels
+
+- **Link previews** — `/card/<code>` is served by a Cloudflare Pages Function (`functions/card/[code].js`) that adds Open Graph tags; `/og/<code>.png` (`functions/og/[code].js`) renders the visitor's actual card as a 1200 × 630 image with resvg, from the same `CardFront` component (`server/og.jsx`). Images are cached at the edge.
+- **QR on the back** — the card back carries a QR code to the card online, so the printed card and the page point to the same visit. Share codes are now compact (`1<marks>.<traces>.<dates>.<name>[.<signature>]`); old links still open.
+- **The card ages** — each return visit (6 h apart) after accession adds a `RENEWED` stamp and a line on the back; time and renewals slowly wear the card (edge darkening, scuffs, a crease).
+- **A shared wall** — visitors can choose to hang their card on the Living Collection (`functions/api/wall*.js`, Cloudflare D1). Explicit consent, removable at any time with a private token kept in the browser, one card per accession number, 5 cards per hour per network, link-like names refused. Without the database the wall falls back to specimen cards.
+- **The making of** — a case study page at `/making-of`.
+- **Performance & accessibility** — Lighthouse (mobile, lobby): accessibility 100, best practices 100, SEO 100; the 3D card renders only when something moves on touch devices.
+
+### Living Collection setup (one time)
+
+```bash
+npx wrangler login
+npx wrangler d1 create common-room-wall        # copy the database_id it prints
+# in wrangler.toml: uncomment the [[d1_databases]] block and paste the id
+npx wrangler d1 migrations apply common-room-wall --remote
+git commit -am "chore: bind the Living Collection database" && git push
+```
+
+Optional: set a `WALL_SALT` environment variable (Cloudflare Pages → Settings → Variables) to salt the network hashes used for rate limiting.
+
+### Local development with functions
+
+```bash
+npm run build
+npx wrangler d1 migrations apply common-room-wall --local   # after uncommenting the D1 block
+npx wrangler pages dev dist
+```
+
+---
+
 ## Day 17
 
 COMMON ROOM is part of **30 Days of Real Business Problems** — a project series exploring how research, product logic, interaction design, and implementation can turn overlooked operational or cultural problems into working artifacts.
