@@ -105,7 +105,7 @@ function maskToMaps(maskCanvas) {
 function texture(canvas, renderer, srgb = true) {
   const t = new THREE.CanvasTexture(canvas)
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace
-  t.anisotropy = renderer.capabilities.getMaxAnisotropy()
+  t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
   t.repeat.set(1 / W, 1 / H)
   t.needsUpdate = true
   return t
@@ -135,7 +135,8 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
     let frame = 0
     const wrap = canvasWrapRef.current
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    const coarse = window.matchMedia?.('(pointer: coarse)').matches
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse || window.innerWidth < 700 ? 1.5 : 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.NeutralToneMapping ?? THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 0.92
@@ -303,6 +304,7 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
       stampPivot.visible = !ceremony
       card.add(stampPivot)
 
+      state.forceRender = true
       setReady(true)
       // First visit after accession: wait for the card to settle, then press the stamp.
       if (ceremony) window.setTimeout(() => { if (!disposed) state.stampT = 0 }, 700)
@@ -321,7 +323,9 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
       state.pitch += (state.tPitch + state.py * 0.1 - state.pitch) * k * 0.9
       state.flip += (state.tFlip - state.flip) * k * 0.7
       state.spread += (state.tSpread - state.spread) * k * 0.5
-      pivot.rotation.set(state.pitch + Math.sin(t * 0.7) * 0.015, state.yaw + state.flip + Math.sin(t * 0.5) * 0.02, Math.sin(t * 0.4) * 0.008)
+      // On touch devices the card rests still (no idle float) so frames are only drawn when something moves.
+      const float = coarse ? 0 : 1
+      pivot.rotation.set(state.pitch + Math.sin(t * 0.7) * 0.015 * float, state.yaw + state.flip + Math.sin(t * 0.5) * 0.02 * float, Math.sin(t * 0.4) * 0.008 * float)
 
       strata.forEach((sheet) => {
         const i = sheet.userData.index
@@ -358,6 +362,10 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
         }
         card.position.z = -state.dip
       }
+      const sig = `${pivot.rotation.x.toFixed(4)}|${pivot.rotation.y.toFixed(4)}|${state.spread.toFixed(3)}|${card.position.z.toFixed(3)}|${state.stampT}|${glint.position.x.toFixed(2)}|${glint.position.y.toFixed(2)}`
+      if (sig === state.lastSig && !state.forceRender) return
+      state.lastSig = sig
+      state.forceRender = false
       renderer.render(scene, camera)
     }
     tick()
@@ -392,7 +400,7 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
       <div className="lc3d-hint">{ready ? (flipped ? 'Drag to turn · tap for the front' : 'Drag to turn · tap to see the back') : 'Pressing your card…'}</div>
       <div className="nq-export-host" ref={hostRef} aria-hidden="true">
         <div data-t="front" style={{ width: W }}><CardFront family={family} actions={record.actions} secrets={record.secrets} owner={owner} /></div>
-        <div data-t="back" style={{ width: W }}><CardBack family={family} owner={owner} entries={entries} /></div>
+        <div data-t="back" style={{ width: W }}><CardBack family={family} owner={owner} entries={entries} qr={owner.qr} /></div>
         <div data-t="foil" style={{ width: W }}><FoilMask family={family} /></div>
         <div data-t="stamp" style={{ width: W }}><StampSheet family={family} date={owner.issued} ink={stampInk(family)} /></div>
       </div>

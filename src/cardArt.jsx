@@ -1,5 +1,6 @@
 import React, { useId, useMemo, useRef, useState } from 'react'
 import { play } from './sound.js'
+import qrcode from 'qrcode-generator'
 
 /* NORTH QUARTER LIBRARY CARD — drawn as one SVG object (856 × 540, CR80 proportions).
    One shared geometry, four materials, and a generative accession rosette that is
@@ -534,8 +535,8 @@ function CatalogueSlip({ family }) {
       <rect width="128" height="50" fill="#f7f2e6" stroke="rgba(0,0,0,.22)" />
       <path d="M0 13H128" stroke="#d0685f" strokeWidth="1.2" />
       <text x="6" y="10" fontFamily={FONT.mono} fontSize="8" fontWeight="700" fill="#1c4077">NQ.000</text>
-      <text x="6" y="27" fontFamily={FONT.mono} fontSize="8.5" fill="#1d1b18">see also → 021</text>
-      <text x="6" y="40" fontFamily={FONT.mono} fontSize="8.5" fill="#1d1b18">see also → 114 → 403</text>
+      <text x="6" y="27" fontFamily={FONT.mono} fontSize="8.5" fill="#1d1b18">see also: 021</text>
+      <text x="6" y="40" fontFamily={FONT.mono} fontSize="8.5" fill="#1d1b18">see also: 114, 403</text>
       <path d="M100 -8 v34 a6 6 0 0 0 12 0 v-28 a4 4 0 0 0 -8 0 v24" fill="none" stroke="#8d9296" strokeWidth="2.2" strokeLinecap="round" />
     </g>
   )
@@ -580,6 +581,55 @@ function Ephemera({ family, secrets, apInk, pencil }) {
 
 const AP_INK = { reader: '#2b2823', maker: '#2b2823', seeker: '#eef3fa', local: '#2b2823', open: '#2b2823' }
 
+function Wear({ uid, wear, seed }) {
+  if (!wear) return null
+  const rand = rng(seed ^ 0x77e)
+  const scuffs = []
+  const corners = [[18, 18], [W - 18, 18], [18, H - 18], [W - 18, H - 18]]
+  corners.forEach(([cx, cy], k) => {
+    for (let i = 0; i < Math.round(3 + wear * 6); i += 1) {
+      const a = rand() * Math.PI * 2
+      const r = 4 + rand() * 20 * wear
+      scuffs.push(<path key={`${k}-${i}`} d={`M${f1(cx + Math.cos(a) * r)} ${f1(cy + Math.sin(a) * r)}l${f1((rand() - 0.5) * 16)} ${f1((rand() - 0.5) * 16)}`} stroke="rgba(255,250,235,.55)" strokeWidth={0.8 + rand()} strokeLinecap="round" />)
+    }
+  })
+  const scratches = Array.from({ length: Math.round(wear * 9) }, (_, i) => {
+    const x = rand() * W
+    const y = rand() * H
+    return <path key={`s${i}`} d={`M${f1(x)} ${f1(y)}l${f1(20 + rand() * 70)} ${f1((rand() - 0.5) * 18)}`} stroke="rgba(255,250,235,.28)" strokeWidth=".7" />
+  })
+  return (
+    <g pointerEvents="none">
+      <defs>
+        <radialGradient id={`${uid}-wear`} cx=".5" cy=".5" r=".72">
+          <stop offset=".62" stopColor="#3a2410" stopOpacity="0" />
+          <stop offset="1" stopColor="#3a2410" stopOpacity={0.42 * wear} />
+        </radialGradient>
+      </defs>
+      <rect width={W} height={H} fill={`url(#${uid}-wear)`} />
+      {wear > 0.45 && (
+        <g>
+          <path d={`M${W * 0.58} -4 C ${W * 0.56} ${H * 0.4}, ${W * 0.6} ${H * 0.6}, ${W * 0.55} ${H + 4}`} stroke="rgba(255,250,235,.32)" strokeWidth="1.4" fill="none" />
+          <path d={`M${W * 0.58 + 2} -4 C ${W * 0.56 + 2} ${H * 0.4}, ${W * 0.6 + 2} ${H * 0.6}, ${W * 0.55 + 2} ${H + 4}`} stroke="rgba(30,18,8,.18)" strokeWidth="1.2" fill="none" />
+        </g>
+      )}
+      {scuffs}
+      {scratches}
+    </g>
+  )
+}
+
+function RenewedStamp({ date, count, ink }) {
+  return (
+    <g transform="translate(470 196) rotate(9)" opacity=".8">
+      <rect x="-54" y="-22" width="108" height="44" fill="none" stroke={ink} strokeWidth="2.4" />
+      <rect x="-49" y="-17" width="98" height="34" fill="none" stroke={ink} strokeWidth=".8" />
+      <text y="-3" textAnchor="middle" fontFamily={FONT.sans} fontWeight="800" fontSize="10" letterSpacing="2.4" fill={ink}>RENEWED{count > 1 ? ` ×${count}` : ''}</text>
+      <text y="12" textAnchor="middle" fontFamily={FONT.mono} fontWeight="700" fontSize="12" fill={ink}>{date}</text>
+    </g>
+  )
+}
+
 export function CardFront({ family = 'reader', open = false, actions = [], secrets = [], owner, detail = 1, stamp = false, compact = false, hollow = false }) {
   const raw = useId()
   const uid = `c${raw.replace(/[^a-zA-Z0-9]/g, '')}`
@@ -619,7 +669,9 @@ export function CardFront({ family = 'reader', open = false, actions = [], secre
         <NotchLabels ink={theme.soft} />
         {!open && <Tally count={actions.length} ink={theme.soft} seed={seed} />}
         {!open && <Ephemera family={family} secrets={secrets} apInk={AP_INK[fam]} pencil={theme.soft} />}
+        {!open && owner?.wear > 0 && <Wear uid={uid} wear={owner.wear} seed={seed} />}
         {stamp && !open && <Stamp date={owner.issued} family={family} ink={theme.stampInk} />}
+        {stamp && !open && owner?.renewed && <RenewedStamp date={owner.renewed} count={owner.renewals} ink={theme.stampInk} />}
         <rect x=".75" y=".75" width={W - 1.5} height={H - 1.5} rx="29.5" fill="none" stroke="rgba(0,0,0,.25)" strokeWidth="1.5" />
       </g>
       </g>
@@ -642,7 +694,25 @@ function Barcode({ value, x, y, w, h }) {
   return <g>{bits}</g>
 }
 
-export function CardBack({ family = 'reader', open = false, owner, entries = [] }) {
+export function QrMark({ url, x, y, size, ink = '#1d1b18' }) {
+  const qr = qrcode(0, 'M')
+  qr.addData(url)
+  qr.make()
+  const n = qr.getModuleCount()
+  const cell = size / (n + 2)
+  let d = ''
+  for (let r = 0; r < n; r += 1) {
+    for (let c = 0; c < n; c += 1) if (qr.isDark(r, c)) d += `M${f1(x + (c + 1) * cell)} ${f1(y + (r + 1) * cell)}h${f1(cell + 0.05)}v${f1(cell + 0.05)}h${f1(-cell - 0.05)}z`
+  }
+  return (
+    <g>
+      <rect x={x} y={y} width={size} height={size} fill="#fbf7ee" />
+      <path d={d} fill={ink} />
+    </g>
+  )
+}
+
+export function CardBack({ family = 'reader', open = false, owner, entries = [], qr = null }) {
   const accent = { reader: '#7a2e2a', maker: '#c8372a', seeker: '#1c4077', local: '#2b5540', open: '#2b2823' }[open ? 'open' : family]
   const rows = entries.slice(0, 9)
   return (
@@ -660,12 +730,20 @@ export function CardBack({ family = 'reader', open = false, owner, entries = [] 
         <text x={W - 46} y="86" textAnchor="end" fontFamily={FONT.serif} fontStyle="italic" fontSize="16" fill="rgba(29,27,24,.7)">Every line is something you actually did.</text>
         <path d={`M46 150H${W - 46}`} stroke="#1d1b18" strokeWidth="1.4" />
         {['DATE', 'ROOM', 'MARK'].map((h, i) => <text key={h} x={[46, 200, 400][i]} y="170" fontFamily={FONT.sans} fontWeight="800" fontSize="9" letterSpacing="2" fill="rgba(29,27,24,.6)">{h}</text>)}
-        {Array.from({ length: 9 }).map((_, i) => <path key={i} d={`M46 ${186 + i * 34}H${W - 46}`} stroke={accent} strokeOpacity=".22" />)}
+        {Array.from({ length: 9 }).map((_, i) => <path key={i} d={`M46 ${186 + i * 34}H${qr ? 632 : W - 46}`} stroke={accent} strokeOpacity=".22" />)}
+        {qr && (
+          <g>
+            <QrMark url={qr} x={652} y={176} size={156} />
+            <text x={730} y={352} textAnchor="middle" fontFamily={FONT.sans} fontWeight="800" fontSize="9" letterSpacing="2" fill="rgba(29,27,24,.65)">SCAN · THIS CARD ONLINE</text>
+            <text x={730} y={370} textAnchor="middle" fontFamily={FONT.serif} fontStyle="italic" fontSize="13" fill="rgba(29,27,24,.55)">the paper and the page</text>
+            <text x={730} y={386} textAnchor="middle" fontFamily={FONT.serif} fontStyle="italic" fontSize="13" fill="rgba(29,27,24,.55)">remember the same visit</text>
+          </g>
+        )}
         <path d="M188 150V492M388 150V492" stroke={accent} strokeOpacity=".22" />
         {rows.map((row, i) => {
           const y = 208 + i * 34
           const tilt = ((hash32(row.id) % 7) - 3) * 0.9
-          const ink = row.secret ? '#9a7a2e' : row.accent
+          const ink = row.secret ? '#9a7a2e' : row.renewal ? '#1d1b18' : row.accent
           return (
             <g key={row.id}>
               <g transform={`translate(56 ${y}) rotate(${tilt})`}>
@@ -673,7 +751,7 @@ export function CardBack({ family = 'reader', open = false, owner, entries = [] 
                 <text x="53" y="0" textAnchor="middle" fontFamily={FONT.mono} fontWeight="700" fontSize="13" fill={ink} opacity=".9">{row.date}</text>
               </g>
               <text x="200" y={y} fontFamily={FONT.sans} fontWeight="700" fontSize="10.5" letterSpacing="1.5" fill="#1d1b18">{row.room}</text>
-              <text x="400" y={y} fontFamily={FONT.serif} fontStyle={row.secret ? 'italic' : 'normal'} fontSize="17" fill={row.secret ? '#7a5a1e' : '#1d1b18'}>{row.label}{row.secret ? ' — found' : ''}</text>
+              <text x="400" y={y} fontFamily={FONT.serif} fontStyle={row.secret || row.renewal ? 'italic' : 'normal'} fontSize="17" fill={row.secret ? '#7a5a1e' : '#1d1b18'}>{row.label}{row.secret ? ' — found' : ''}</text>
             </g>
           )
         })}
@@ -685,7 +763,7 @@ export function CardBack({ family = 'reader', open = false, owner, entries = [] 
   )
 }
 
-export function backEntries({ actions, secrets, times = {}, labels, accents, fallback }) {
+export function backEntries({ actions, secrets, times = {}, labels, accents, fallback, renewals = [] }) {
   const rows = actions.map((id) => ({
     id,
     date: fmt(times[id] || fallback),
@@ -694,7 +772,9 @@ export function backEntries({ actions, secrets, times = {}, labels, accents, fal
     accent: accents[familyOf(id)],
   }))
   secrets.forEach((id) => rows.push({ id: `s-${id}`, date: fmt(times[`s-${id}`] || fallback), room: 'HIDDEN TRACE', label: labels.secrets[id] || id, secret: true }))
-  return rows
+  renewals.forEach((ts, i) => rows.push({ id: `r-${ts}`, date: fmt(ts), room: 'RENEWED', label: `Visit ${String(i + 2).padStart(2, '0')} — the card came back`, renewal: true }))
+  // Keep the most recent lines when the slip is full, like a real date-due slip.
+  return rows.length > 9 ? rows.slice(rows.length - 9) : rows
 }
 
 function fmt(ts) {

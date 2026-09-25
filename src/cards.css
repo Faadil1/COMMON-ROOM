@@ -176,3 +176,25 @@
 .family-seeker .lens2-window { --family-accent: #1c4077; }
 .family-local .lens2-window { --family-accent: #2b5540; }
 @media (max-width: 620px) { .lens2 { width: 86%; } .lens2-window p { font-size: 10px; } .lens2-window small { display: none; } }
+
+/* Living Collection consent + live wall */
+.nq-wallconsent { max-width: 500px; margin-top: 26px; padding-top: 22px; border-top: 1px solid rgba(247,243,234,.16); display: grid; gap: 12px; color: #f3ecdc; }
+.nq-wallconsent p { margin: 0 !important; font: italic 400 17px/1.3 var(--serif) !important; color: rgba(247,243,234,.78) !important; }
+.nq-wallconsent-check { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; font: 400 13px/1.45 var(--sans); color: rgba(247,243,234,.78); cursor: pointer; }
+.nq-wallconsent-check input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #e3b341; }
+.nq-wallconsent .room-secondary { justify-self: start; }
+.nq-wallconsent .room-secondary:disabled { opacity: .45; cursor: not-allowed; }
+.nq-wallconsent-actions { display: flex; gap: 18px; flex-wrap: wrap; }
+.nq-wallconsent-msg { font: 500 12px/1.4 var(--sans) !important; font-style: normal !important; color: #e3c27a !important; }
+.nq-wall-live { border-style: solid; color: #e3c27a; }
+.nq-tile-specimen { position: absolute; z-index: 3; right: 10px; top: -9px; padding: 3px 6px; background: #3a3630; color: rgba(243,236,220,.8); font: 700 7px/1 var(--sans); letter-spacing: .16em; }
+
+/* Accessibility: small labels meet WCAG AA contrast */
+.room-kicker { opacity: .74; }
+.room-next span { opacity: .72; }
+.room-directory span { opacity: .7; }
+.nq-passport-copy small { opacity: .78; }
+.room-nav button { opacity: .72; }
+.nq-fan-card { animation: nq-fade .6s ease both; }
+.nq-makingof-link { border: 0; background: transparent; color: inherit; font: 700 9px/1 var(--sans); letter-spacing: .16em; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; opacity: .75; }
+.nq-makingof { margin: 56px clamp(16px, 5vw, 76px) -30px; text-align: right; }
