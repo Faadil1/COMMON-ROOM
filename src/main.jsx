@@ -1,10 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
+import { ArrowRight, Download, Eraser, RotateCcw } from 'lucide-react'
+import { toPng } from 'html-to-image'
+import '@fontsource-variable/newsreader/opsz.css'
+import '@fontsource-variable/newsreader/opsz-italic.css'
+import '@fontsource/public-sans/400.css'
+import '@fontsource/public-sans/500.css'
+import '@fontsource/public-sans/600.css'
+import '@fontsource/public-sans/700.css'
 import './styles.css'
 import './refinement.css'
 import './rooms.css'
 import './memorability.css'
+import './record.css'
 
 const FAMILY = {
   reader: {
@@ -90,6 +98,12 @@ const ROOM_FAMILY = {
   '/quarter': 'local',
 }
 
+function nextRoom(record) {
+  const visited = new Set(record.actions.map((id) => ACTIONS[id]?.family))
+  const room = Object.keys(ROOM_FAMILY).find((path) => !visited.has(ROOM_FAMILY[path]))
+  return room || '/record'
+}
+
 const TRACE_FORM = {
   '/stacks': 'margin',
   '/workshop': 'register',
@@ -102,15 +116,77 @@ const TRACE_FORM = {
 
 const STORAGE_KEY = 'common-room-member-record-v2'
 
+const EMPTY_RECORD = { actions: [], secrets: [], name: '', signature: [], startedAt: null, issuedAt: null, stampSeen: false }
+const RESOLVE_AT = 3
+
 function safeLoadRecord() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    const actions = Array.isArray(stored.actions) ? stored.actions.filter((id) => ACTIONS[id]) : []
     return {
-      actions: Array.isArray(stored.actions) ? stored.actions.filter((id) => ACTIONS[id]) : [],
+      ...EMPTY_RECORD,
+      actions,
       secrets: Array.isArray(stored.secrets) ? stored.secrets.filter((id) => SECRETS[id]) : [],
+      name: typeof stored.name === 'string' ? stored.name.slice(0, 28) : '',
+      signature: Array.isArray(stored.signature) ? stored.signature.filter(Array.isArray).slice(0, 40) : [],
+      startedAt: Number.isFinite(stored.startedAt) ? stored.startedAt : (actions.length ? Date.now() : null),
+      issuedAt: Number.isFinite(stored.issuedAt) ? stored.issuedAt : (actions.length >= RESOLVE_AT ? Date.now() : null),
+      stampSeen: Boolean(stored.stampSeen),
     }
   } catch {
-    return { actions: [], secrets: [] }
+    return { ...EMPTY_RECORD }
+  }
+}
+
+// The accession number is fixed at the moment of issue: the visit's start time
+// plus the three marks that resolved the record. Same library, different residue.
+function hashString(input) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
+function getAccessionNumber(record) {
+  if (record.actions.length < RESOLVE_AT) return 'NQ / OPEN'
+  const seed = `${record.startedAt || 0}|${record.actions.slice(0, RESOLVE_AT).join(',')}`
+  const n = String(hashString(seed) % 1000000).padStart(6, '0')
+  return `NQ ${n.slice(0, 3)} ${n.slice(3)}`
+}
+
+function formatIssueDate(ts) {
+  const date = ts ? new Date(ts) : new Date()
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+  return `${String(date.getDate()).padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`
+}
+
+function signaturePath(strokes) {
+  return strokes.map((stroke) => {
+    if (!stroke.length) return ''
+    if (stroke.length === 1) {
+      const [x, y] = stroke[0]
+      return `M${x} ${y}l.1 .1`
+    }
+    let d = `M${stroke[0][0]} ${stroke[0][1]}`
+    for (let i = 1; i < stroke.length - 1; i += 1) {
+      const [x, y] = stroke[i]
+      const [nx, ny] = stroke[i + 1]
+      d += `Q${x} ${y} ${(x + nx) / 2} ${(y + ny) / 2}`
+    }
+    const last = stroke[stroke.length - 1]
+    return `${d}L${last[0]} ${last[1]}`
+  }).join('')
+}
+
+function mulberry32(seed) {
+  let a = seed
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
 
@@ -243,7 +319,7 @@ function FamilyEvidenceMark({ family, actions = [], compact = false, unregistere
             <circle className={classFor('index-021', 'evidence-node')} cx="15" cy="76" r="4" />
             <circle className={classFor('index-114', 'evidence-node')} cx="47" cy="56" r="4" />
             <circle className={classFor('index-403', 'evidence-node')} cx="86" cy="28" r="4" />
-            <text x="9" y="90">021</text><text x="39" y="49">114</text><text x="73" y="20">403</text>
+            <text x="9" y="90" stroke="none" fill="currentColor">021</text><text x="39" y="49" stroke="none" fill="currentColor">114</text><text x="73" y="20" stroke="none" fill="currentColor">403</text>
           </svg>
         )}
         {family === 'local' && (
@@ -332,7 +408,7 @@ const QUARTER_POSITIONS = [
   [20,82],[34,79],[49,83],[64,79],[79,84],
 ]
 
-function QuarterCollectionReveal({ currentFamily }) {
+function QuarterCollectionReveal({ currentFamily, name }) {
   const families = Object.keys(FAMILY)
   return (
     <section className="collection-quarter" style={{ '--family-accent': FAMILY[currentFamily].accent }} aria-label="The Living Collection rearranged as North Quarter">
@@ -356,7 +432,7 @@ function QuarterCollectionReveal({ currentFamily }) {
             style={{ left: `${x}%`, top: `${y}%`, '--family-accent': FAMILY[family].accent }}
           >
             <i />
-            <b>{isCurrent ? 'YOUR RECORD' : FAMILY[family].title}</b>
+            <b>{isCurrent ? (name ? name.toUpperCase() : 'YOUR RECORD') : FAMILY[family].title}</b>
           </span>
         )
       })}
@@ -415,7 +491,7 @@ function AccessionStrata({ actions = [], secrets = [] }) {
   )
 }
 
-function StratifiedMemberCard({ family, actions, secrets, resolved, unregistered }) {
+function StratifiedMemberCard({ family, actions, secrets, resolved, unregistered, owner, stamp, stampLanding }) {
   const visibleLayerCount = Math.min(actions.length, 4) + Math.min(secrets.length, 1)
   return (
     <div
@@ -423,7 +499,7 @@ function StratifiedMemberCard({ family, actions, secrets, resolved, unregistered
       style={{ '--family-accent': FAMILY[family].accent }}
     >
       {resolved && <AccessionStrata actions={actions} secrets={secrets} />}
-      <MemberCard family={family} actions={actions} secrets={secrets} resolved={resolved} unregistered={unregistered} />
+      <MemberCard family={family} actions={actions} secrets={secrets} resolved={resolved} unregistered={unregistered} owner={owner} stamp={stamp} stampLanding={stampLanding} />
       {resolved && (
         <span className="strata-index" aria-hidden="true">
           ACCESSION STRATA / {String(visibleLayerCount).padStart(2, '0')} VISIBLE / {String(actions.length + secrets.length).padStart(2, '0')} RECORDED
@@ -433,35 +509,87 @@ function StratifiedMemberCard({ family, actions, secrets, resolved, unregistered
   )
 }
 
-function MemberCard({ family = 'reader', actions = [], secrets = [], compact = false, resolved = false, unregistered = false }) {
+function SignatureMark({ strokes, name, placeholder = 'Borrower’s signature' }) {
+  if (strokes?.length) {
+    return (
+      <svg className="nq-signature" viewBox="0 0 400 120" preserveAspectRatio="xMinYMid meet" aria-hidden="true">
+        <path d={signaturePath(strokes)} fill="none" stroke="#1d2742" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  if (name) return <span className="nq-signature-name">{name}</span>
+  return <span className="nq-signature-empty">{placeholder}</span>
+}
+
+function AccessionStamp({ family, date, landing = false }) {
+  const id = `stamp-${family}`
+  return (
+    <div className={`nq-stamp ${landing ? 'is-landing' : ''}`} aria-label={`Accessioned ${date}`}>
+      <svg viewBox="0 0 200 200">
+        <defs>
+          <path id={`${id}-arc`} d="M100 100 m-74 0 a74 74 0 1 1 148 0 a74 74 0 1 1 -148 0" />
+        </defs>
+        <g fill="currentColor">
+          <circle cx="100" cy="100" r="94" className="stamp-ring" fill="none" stroke="currentColor" strokeWidth="5" />
+          <circle cx="100" cy="100" r="60" className="stamp-ring stamp-ring-thin" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="1 3.2" />
+          <text className="stamp-arc" fontSize="14.5" fontWeight="700" letterSpacing="3.1" fontFamily="Public Sans, Arial, sans-serif"><textPath href={`#${id}-arc`} startOffset="0">NORTH QUARTER PUBLIC LIBRARY · ACCESSIONED ·</textPath></text>
+          <text x="100" y="88" textAnchor="middle" fontSize="11" fontWeight="700" letterSpacing="2.4" fontFamily="Public Sans, Arial, sans-serif" className="stamp-small">MEMBER RECORD</text>
+          <text x="100" y="112" textAnchor="middle" fontSize="21" fontWeight="700" letterSpacing="1" fontFamily="Public Sans, Arial, sans-serif" className="stamp-date">{date}</text>
+          <text x="100" y="132" textAnchor="middle" fontSize="11" fontWeight="700" letterSpacing="2.4" fontFamily="Public Sans, Arial, sans-serif" className="stamp-small">{FAMILY[family].title}</text>
+        </g>
+      </svg>
+    </div>
+  )
+}
+
+function MemberCard({ family = 'reader', actions = [], secrets = [], compact = false, resolved = false, unregistered = false, owner = null, stamp = false, stampLanding = false }) {
   const meta = FAMILY[family]
+  const number = unregistered ? 'NQ / OPEN' : (owner?.number || meta.code)
+  const issued = unregistered ? '—' : (owner?.issued || formatIssueDate())
+  const title = unregistered ? 'Unregistered' : meta.title
   return (
     <article
-      className={`member-card family-${family} ${compact ? 'member-card--compact' : ''} ${resolved ? 'member-card--resolved' : ''} ${unregistered ? 'member-card--unregistered' : ''}`}
+      className={`member-card nq-card family-${family} ${compact ? 'member-card--compact' : ''} ${resolved ? 'member-card--resolved' : ''} ${unregistered ? 'member-card--unregistered' : ''} ${stampLanding ? 'is-stamped' : ''}`}
       style={{ '--family-accent': meta.accent }}
     >
       <div className="paper-grain" aria-hidden="true" />
       <div className="accession-rail" aria-hidden="true"><span>ACCESSION / NQ</span><i /><i /><i /></div>
       <div className="card-register" aria-hidden="true"><span /><span /></div>
-      <header className="card-brand">
+      <header className="nq-card-brand">
         <Monogram />
         <div><strong>North Quarter</strong><span>Public Library</span></div>
       </header>
-      <div className="card-title-row">
-        <h3>{unregistered ? 'UNREGISTERED' : meta.title}</h3>
-        {!compact && <span className="card-edition">{unregistered ? 'OPEN / 000' : meta.edition}</span>}
+      <div className="nq-card-body">
+        <span className="nq-card-edition">{unregistered ? 'MEMBER RECORD / OPEN' : `MEMBER RECORD / ${meta.edition}`}</span>
+        <h3 className={`nq-card-title ${unregistered ? 'is-long' : ''}`}>{title}</h3>
+        {!compact && <p className="nq-card-statement">{unregistered ? 'Leave three marks in the rooms. The card will follow.' : meta.statement}</p>}
       </div>
       <FamilyEvidenceMark family={family} actions={actions} compact={compact} unregistered={unregistered} />
       <CardPatinaLayer actions={actions} secrets={secrets} compact={compact} />
       {!compact && (
-        <>
-          <p className="card-statement">{unregistered ? 'Your record changes as you move through the library.' : meta.statement}</p>
-          <div className="card-member"><strong>{unregistered ? 'NQ / OPEN' : meta.code}</strong><span>MARA ELLIS</span></div>
-          <div className="card-detail">{unregistered ? 'NO TRACE YET' : meta.detail}</div>
-        </>
+        <footer className="nq-card-foot">
+          <div className="nq-card-sign">
+            <SignatureMark strokes={owner?.signature} name={owner?.name} placeholder={unregistered ? 'Signature after accession' : 'Borrower’s signature'} />
+          </div>
+          <dl className="nq-card-meta">
+            <div><dt>No.</dt><dd>{number}</dd></div>
+            <div><dt>Borrower</dt><dd>{owner?.name || (unregistered ? '—' : 'Unsigned')}</dd></div>
+            <div><dt>Issued</dt><dd>{issued}</dd></div>
+          </dl>
+        </footer>
       )}
+      {stamp && !unregistered && <AccessionStamp family={family} date={issued} landing={stampLanding} />}
     </article>
   )
+}
+
+function ownerFromRecord(record) {
+  return {
+    name: record.name,
+    signature: record.signature,
+    number: getAccessionNumber(record),
+    issued: formatIssueDate(record.issuedAt),
+  }
 }
 
 function usePath() {
@@ -474,23 +602,45 @@ function usePath() {
   return [path, setPath]
 }
 
-function useMemberRecord() {
-  const [record, setRecord] = useState(safeLoadRecord)
-  useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(record)), [record])
-
-  const addAction = (id) => {
-    if (!ACTIONS[id]) return
-    setRecord((current) => current.actions.includes(id) ? current : { ...current, actions: [...current.actions, id] })
-  }
-  const addSecret = (id) => {
-    if (!SECRETS[id]) return
-    setRecord((current) => current.secrets.includes(id) ? current : { ...current, secrets: [...current.secrets, id] })
-  }
-  const reset = () => setRecord({ actions: [], secrets: [] })
-  return { record, addAction, addSecret, reset }
+function readStorage() {
+  try { return safeLoadRecord() } catch { return { ...EMPTY_RECORD } }
 }
 
-function SiteHeader({ path, navigate }) {
+function useMemberRecord() {
+  const [record, setRecord] = useState(readStorage)
+  const [lastMark, setLastMark] = useState(null)
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(record)) } catch { /* private mode: keep in memory */ }
+  }, [record])
+
+  const addAction = (id) => {
+    if (!ACTIONS[id] || record.actions.includes(id)) return
+    setRecord((current) => {
+      if (current.actions.includes(id)) return current
+      const actions = [...current.actions, id]
+      const now = Date.now()
+      return {
+        ...current,
+        actions,
+        startedAt: current.startedAt || now,
+        issuedAt: current.issuedAt || (actions.length >= RESOLVE_AT ? now : null),
+      }
+    })
+    setLastMark({ kind: 'action', id, at: Date.now(), count: record.actions.length + 1 })
+  }
+  const addSecret = (id) => {
+    if (!SECRETS[id] || record.secrets.includes(id)) return
+    setRecord((current) => current.secrets.includes(id) ? current : { ...current, secrets: [...current.secrets, id], startedAt: current.startedAt || Date.now() })
+    setLastMark({ kind: 'secret', id, at: Date.now(), count: record.actions.length })
+  }
+  const setName = (name) => setRecord((current) => ({ ...current, name: name.slice(0, 28) }))
+  const setSignature = (signature) => setRecord((current) => ({ ...current, signature }))
+  const markStampSeen = () => setRecord((current) => ({ ...current, stampSeen: true }))
+  const reset = () => { setRecord({ ...EMPTY_RECORD }); setLastMark(null) }
+  return { record, lastMark, addAction, addSecret, setName, setSignature, markStampSeen, reset }
+}
+
+function SiteHeader({ path, navigate, record }) {
   return (
     <header className="room-header">
       <button className="room-brand" onClick={() => navigate('/')}>
@@ -501,21 +651,50 @@ function SiteHeader({ path, navigate }) {
           <button key={route.path} className={path === route.path ? 'is-current' : ''} onClick={() => navigate(route.path)}>{route.short}</button>
         ))}
       </nav>
-      <span className="room-day">DAY 17</span>
+      <MemberPassport record={record} navigate={navigate} current={path === '/record'} />
     </header>
   )
 }
 
-function MemberPassport({ record, navigate }) {
+function MemberPassport({ record, navigate, current }) {
   const family = getOutcome(record.actions)
   const meta = FAMILY[family]
-  const isOpen = record.actions.length < 3
+  const isOpen = record.actions.length < RESOLVE_AT
+  const dots = Array.from({ length: RESOLVE_AT })
   return (
-    <button className="member-passport" onClick={() => navigate('/record')} style={{ '--passport-accent': meta.accent }}>
-      <span className="passport-mark">NQ</span>
-      <span className="passport-copy"><strong>{isOpen ? 'MEMBER RECORD / OPEN' : meta.title}</strong><small>{record.actions.length} MARKS · {record.secrets.length}/4 HIDDEN</small></span>
-      <ArrowRight size={15} />
+    <button className={`nq-passport ${current ? 'is-current' : ''} ${isOpen ? 'is-open' : 'is-resolved'}`} onClick={() => navigate('/record')} style={{ '--passport-accent': meta.accent }} aria-label={`Member record: ${isOpen ? 'open' : meta.title}, ${record.actions.length} marks`}>
+      <span className="nq-passport-dots" aria-hidden="true">
+        {dots.map((_, i) => <i key={i} className={i < record.actions.length ? 'is-on' : ''} />)}
+      </span>
+      <span className="nq-passport-copy">
+        <strong>{isOpen ? 'RECORD OPEN' : meta.title}</strong>
+        <small>{isOpen ? `${RESOLVE_AT - record.actions.length} MARK${RESOLVE_AT - record.actions.length > 1 ? 'S' : ''} TO ACCESSION` : `${record.actions.length} MARKS · ${record.secrets.length}/4 HIDDEN`}</small>
+      </span>
     </button>
+  )
+}
+
+// A date-due slip that slides in every time the library registers something you did.
+function MarkSlip({ lastMark }) {
+  const [visible, setVisible] = useState(null)
+  useEffect(() => {
+    if (!lastMark) return undefined
+    setVisible(lastMark)
+    const timer = window.setTimeout(() => setVisible(null), 2600)
+    return () => window.clearTimeout(timer)
+  }, [lastMark])
+  if (!visible) return null
+  const isSecret = visible.kind === 'secret'
+  const entry = isSecret ? SECRETS[visible.id] : ACTIONS[visible.id]
+  const family = entry.family
+  const resolvedNow = !isSecret && visible.count === RESOLVE_AT
+  return (
+    <div key={visible.at} className={`nq-slip family-${family} ${isSecret ? 'is-secret' : ''}`} style={{ '--family-accent': FAMILY[family].accent }} role="status">
+      <span className="nq-slip-head">NORTH QUARTER · {isSecret ? 'HIDDEN TRACE' : 'DATE REGISTERED'}</span>
+      <strong className="nq-slip-label">{entry.label}</strong>
+      <span className="nq-slip-count">{isSecret ? 'Kept in your record' : resolvedNow ? 'Record ready for accession →' : `Mark ${String(visible.count).padStart(2, '0')}`}</span>
+      <span className="nq-slip-stamp" aria-hidden="true">{formatIssueDate(visible.at)}</span>
+    </div>
   )
 }
 
@@ -526,7 +705,7 @@ function RoomShell({ path, navigate, record, children, tone = 'paper' }) {
 
   return (
     <main className={`room-page room-tone-${tone} ${remembered ? 'room-is-remembered' : ''}`}>
-      <SiteHeader path={path} navigate={navigate} />
+      <SiteHeader path={path} navigate={navigate} record={record} />
       {remembered && (
         <div className={`room-memory-residue memory-${roomFamily} memory-level-${Math.min(3, roomMarks.length)}`} aria-hidden="true">
           <span className="memory-line memory-line-a" />
@@ -535,7 +714,6 @@ function RoomShell({ path, navigate, record, children, tone = 'paper' }) {
         </div>
       )}
       {children}
-      {path !== '/record' && <MemberPassport record={record} navigate={navigate} />}
     </main>
   )
 }
@@ -543,6 +721,8 @@ function RoomShell({ path, navigate, record, children, tone = 'paper' }) {
 function Lobby({ path, navigate, record }) {
   const family = getOutcome(record.actions)
   const started = record.actions.length > 0
+  const resolved = record.actions.length >= RESOLVE_AT
+  const firstName = record.name.trim().split(/\s+/)[0]
   const rooms = [
     ['/stacks', '01', 'THE STACKS', 'Read between the lines.', 'Margins / pages / traces'],
     ['/workshop', '02', 'THE WORKSHOP', 'Make a mark hold.', 'Print / registration / material'],
@@ -553,15 +733,19 @@ function Lobby({ path, navigate, record }) {
     <RoomShell path={path} navigate={navigate} record={record} tone="dark">
       <section className="lobby-grid">
         <div className="lobby-copy">
-          <span className="room-kicker">THE LIVING COLLECTION / MEMBER ENTRY</span>
+          <span className="room-kicker">{resolved ? `WELCOME BACK / ${getAccessionNumber(record)}` : 'THE LIVING COLLECTION / MEMBER ENTRY'}</span>
           <h1>COMMON<br /><em>ROOM</em></h1>
-          <p>A library card should not just unlock access. It should remember how you belong.</p>
-          <button className="room-primary room-primary-light" onClick={() => navigate(started ? '/record' : '/stacks')}>
-            {started ? 'Continue your record' : 'Enter the library'} <ArrowRight size={17} />
+          {resolved && firstName
+            ? <p className="lobby-remembered">The library remembers you, <em>{firstName}</em>. {record.actions.length} marks, {record.secrets.length} hidden trace{record.secrets.length === 1 ? '' : 's'}, one card.</p>
+            : <p>You don’t get a library card here. You <em>accumulate</em> one, from what you actually do inside.</p>}
+          <button className="room-primary room-primary-light" onClick={() => navigate(started ? (resolved ? '/record' : nextRoom(record)) : '/stacks')}>
+            {!started ? 'Enter the library' : resolved ? 'Open your record' : 'Continue your visit'} <ArrowRight size={17} />
           </button>
         </div>
         <div className="lobby-object">
-          <div className="lobby-vitrine"><MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={record.actions.length >= 3} unregistered={!record.actions.length} /></div>
+          <div className="lobby-vitrine">
+            <MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} owner={ownerFromRecord(record)} stamp={resolved} />
+          </div>
           <div className="lobby-plaque"><strong>MEMBERSHIP IS A RECORD OF PARTICIPATION.</strong><span>NQ / ACCESSION DESK</span></div>
         </div>
       </section>
@@ -702,11 +886,115 @@ function QuarterRoom({ path, navigate, record, addAction, addSecret }) {
   )
 }
 
-function RecordRoom({ path, navigate, record, reset }) {
+function SignaturePad({ strokes, onChange }) {
+  const svgRef = useRef(null)
+  const drawing = useRef(null)
+  const [live, setLive] = useState(strokes)
+  useEffect(() => { if (!drawing.current) setLive(strokes) }, [strokes])
+
+  const point = (event) => {
+    const rect = svgRef.current.getBoundingClientRect()
+    return [
+      Math.round(Math.min(400, Math.max(0, ((event.clientX - rect.left) / rect.width) * 400))),
+      Math.round(Math.min(120, Math.max(0, ((event.clientY - rect.top) / rect.height) * 120))),
+    ]
+  }
+  const start = (event) => {
+    event.preventDefault()
+    svgRef.current.setPointerCapture?.(event.pointerId)
+    drawing.current = [...live.slice(-30), [point(event)]]
+    setLive(drawing.current)
+  }
+  const move = (event) => {
+    if (!drawing.current) return
+    const stroke = drawing.current[drawing.current.length - 1]
+    const [x, y] = point(event)
+    const [lx, ly] = stroke[stroke.length - 1]
+    if (Math.hypot(x - lx, y - ly) < 2.5 || stroke.length > 400) return
+    stroke.push([x, y])
+    setLive([...drawing.current])
+  }
+  const end = () => {
+    if (!drawing.current) return
+    onChange(drawing.current)
+    drawing.current = null
+  }
+
+  return (
+    <div className="nq-signpad">
+      <svg
+        ref={svgRef}
+        viewBox="0 0 400 120"
+        onPointerDown={start}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={end}
+        onPointerLeave={end}
+        role="img"
+        aria-label="Signature pad: draw your signature"
+      >
+        <line x1="14" y1="96" x2="386" y2="96" className="nq-signpad-line" />
+        <text x="16" y="113" className="nq-signpad-hint">{live.length ? 'SIGNED IN INK / NQ' : 'SIGN HERE WITH YOUR FINGER OR MOUSE'}</text>
+        <path d={signaturePath(live)} className="nq-signpad-ink" />
+      </svg>
+      {live.length > 0 && <button type="button" className="nq-signpad-clear" onClick={() => { setLive([]); onChange([]) }}><Eraser size={13} /> Clear</button>}
+    </div>
+  )
+}
+
+function ExportFrame({ family, record, frameRef }) {
+  return (
+    <div className="nq-export-host" aria-hidden="true">
+      <div className="nq-export" ref={frameRef} style={{ '--family-accent': FAMILY[family].accent }}>
+        <div className="nq-export-top"><span>COMMON ROOM</span><span>NORTH QUARTER PUBLIC LIBRARY</span></div>
+        <div className="nq-export-card">
+          <MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved owner={ownerFromRecord(record)} stamp />
+        </div>
+        <div className="nq-export-foot">
+          <strong>You do not receive a card. You accumulate one.</strong>
+          <span>{record.actions.length} MARKS · {record.secrets.length}/4 HIDDEN TRACES · {getAccessionNumber(record)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RecordRoom({ path, navigate, record, reset, setName, setSignature, markStampSeen }) {
   const family = getOutcome(record.actions)
   const meta = FAMILY[family]
-  const resolved = record.actions.length >= 3
+  const resolved = record.actions.length >= RESOLVE_AT
   const familyCounts = Object.keys(FAMILY).map((key) => [key, record.actions.filter((id) => ACTIONS[id]?.family === key).length])
+  const [landing, setLanding] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const exportRef = useRef(null)
+
+  useEffect(() => {
+    if (!resolved || record.stampSeen) return undefined
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) { markStampSeen(); return undefined }
+    const start = window.setTimeout(() => setLanding(true), 650)
+    const done = window.setTimeout(() => { setLanding(false); markStampSeen() }, 2400)
+    return () => { window.clearTimeout(start); window.clearTimeout(done) }
+  }, [resolved, record.stampSeen])
+
+  const showStamp = resolved && (record.stampSeen || landing)
+
+  const download = async () => {
+    if (!exportRef.current || exporting) return
+    setExporting(true)
+    try {
+      const url = await toPng(exportRef.current, { pixelRatio: 2, cacheBust: true })
+      const link = document.createElement('a')
+      link.download = `common-room-${getAccessionNumber(record).replace(/\s+/g, '-').toLowerCase()}.png`
+      link.href = url
+      link.click()
+    } catch (error) {
+      console.error('Card export failed', error)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <RoomShell path={path} navigate={navigate} record={record} tone="dark">
       <section className="record-layout">
@@ -717,14 +1005,28 @@ function RecordRoom({ path, navigate, record, reset }) {
           <div className="record-score">
             {familyCounts.map(([key, count]) => <div key={key}><span>{FAMILY[key].title}</span><i><b style={{ width: `${Math.min(100, count * 34)}%`, background: FAMILY[key].accent }} /></i><strong>{count}</strong></div>)}
           </div>
+          {resolved && (
+            <div className="nq-desk" style={{ '--family-accent': meta.accent }}>
+              <span className="nq-desk-kicker">ACCESSION DESK / SIGN YOUR CARD</span>
+              <label className="nq-desk-name">
+                <span>Name on the card</span>
+                <input value={record.name} maxLength={28} placeholder="Your name" onChange={(event) => setName(event.target.value)} autoComplete="name" />
+              </label>
+              <SignaturePad strokes={record.signature} onChange={setSignature} />
+              <p className="nq-desk-note">Stays in this browser. Nothing is sent anywhere.</p>
+            </div>
+          )}
           <div className="record-actions">
-            <button className="room-primary room-primary-light" onClick={() => resolved ? document.getElementById('member-lens')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : navigate('/stacks')}>{resolved ? 'Use your Member Lens' : 'Keep exploring'} <ArrowRight size={16} /></button>
+            {resolved
+              ? <button className="room-primary room-primary-light" onClick={download} disabled={exporting}><Download size={16} /> {exporting ? 'Printing your card…' : 'Take your card home'}</button>
+              : <button className="room-primary room-primary-light" onClick={() => navigate(nextRoom(record))}>Keep exploring <ArrowRight size={16} /></button>}
+            {resolved && <button className="room-secondary" onClick={() => document.getElementById('member-lens')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Use your Member Lens <ArrowRight size={14} /></button>}
             <button className="room-reset" onClick={reset}><RotateCcw size={14} /> Reset record</button>
           </div>
         </div>
         <div className="record-object">
           <div className="record-light" />
-          <StratifiedMemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} />
+          <StratifiedMemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} owner={ownerFromRecord(record)} stamp={showStamp} stampLanding={landing} />
           <span className="hidden-emboss">YOU WERE HERE.</span>
           <div className="record-ledger">
             <span>{record.actions.length} REGISTERED MARKS</span>
@@ -735,7 +1037,45 @@ function RecordRoom({ path, navigate, record, reset }) {
         </div>
       </section>
       {resolved && <CardLensReveal family={family} actions={record.actions} secrets={record.secrets} navigate={navigate} />}
+      {resolved && <ExportFrame family={family} record={record} frameRef={exportRef} />}
     </RoomShell>
+  )
+}
+
+const WALL_NAMES = ['A. Okafor', 'L. Tremblay', 'M. Nguyen', 'S. Haddad', 'J. Ouellet', 'R. Mensah', 'C. Lavoie', 'H. Diallo', 'E. Kowalski', 'N. Bélanger', 'T. Adeyemi', 'P. Gagnon', 'Y. Chen', 'F. Côté', 'K. Amani', 'D. Leblanc', 'I. Moreau', 'B. Sow', 'G. Fortin', 'O. Traoré', 'V. Roy', 'W. Nakamura', 'Z. Pelletier', 'A. Bouchard', 'M. Kaboré', 'É. Girard', 'S. Park', 'L. Mbeki']
+
+function buildWall() {
+  const rand = mulberry32(17)
+  const families = Object.keys(FAMILY)
+  return WALL_NAMES.map((name, index) => {
+    const family = families[Math.floor(rand() * 4)]
+    const pool = FAMILY_ACTION_ORDER[family]
+    const count = 1 + Math.floor(rand() * 3)
+    const actions = [...pool].sort(() => rand() - 0.5).slice(0, count)
+    return {
+      key: `wall-${index}`,
+      family,
+      actions,
+      name,
+      strokes: [],
+      number: `NQ ${String(Math.floor(rand() * 1000)).padStart(3, '0')} ${String(Math.floor(rand() * 1000)).padStart(3, '0')}`,
+      hidden: rand() > 0.78,
+    }
+  })
+}
+
+function WallTile({ entry, isYou }) {
+  return (
+    <article className={`nq-tile family-${entry.family} ${isYou ? 'is-you' : ''}`} style={{ '--family-accent': FAMILY[entry.family].accent }}>
+      {isYou && <span className="nq-tile-you">YOUR RECORD</span>}
+      <header><span>{entry.number}</span>{entry.hidden && <b>HIDDEN TRACE</b>}</header>
+      <strong>{FAMILY[entry.family].title}</strong>
+      <div className="nq-tile-aperture"><FamilyEvidenceMark family={entry.family} actions={entry.actions} compact /></div>
+      <footer>
+        <SignatureMark strokes={entry.strokes} name={entry.name} placeholder="Unsigned" />
+        <small>BORROWER</small>
+      </footer>
+    </article>
   )
 }
 
@@ -744,7 +1084,19 @@ function CollectionRoom({ path, navigate, record }) {
   const [view, setView] = useState('wall')
   const families = Object.keys(FAMILY)
   const currentFamily = getOutcome(record.actions)
-  const wall = Array.from({ length: 28 }).map((_, index) => families[index % 4]).filter((family) => filter === 'all' || filter === family)
+  const resolved = record.actions.length >= RESOLVE_AT
+  const base = useMemo(buildWall, [])
+  const you = resolved ? {
+    key: 'you',
+    family: currentFamily,
+    actions: record.actions,
+    name: record.name,
+    strokes: record.signature,
+    number: getAccessionNumber(record),
+    hidden: record.secrets.length > 0,
+  } : null
+  const all = you ? [...base.slice(0, 12), you, ...base.slice(12, 27)] : base
+  const wall = all.filter((entry) => filter === 'all' || filter === entry.family)
 
   return (
     <RoomShell path={path} navigate={navigate} record={record} tone="collection">
@@ -766,15 +1118,12 @@ function CollectionRoom({ path, navigate, record }) {
       </section>
 
       {view === 'wall' ? (
-        <section className="living-wall">
-          {wall.map((family, index) => (
-            <button key={`${family}-${index}`} className={`living-record family-${family}`} style={{ '--family-accent': FAMILY[family].accent }}>
-              <span>NQ / {String(index + 17).padStart(4, '0')}</span><strong>{FAMILY[family].title}</strong><i className="living-aperture" /><small>{family === 'reader' ? 'MARGIN' : family === 'maker' ? 'REGISTER' : family === 'seeker' ? 'REFERENCE' : 'ADDRESS'}</small>
-            </button>
-          ))}
+        <section className="nq-wall">
+          {!resolved && <p className="nq-wall-note">Your card isn’t on the wall yet. Leave {RESOLVE_AT - record.actions.length} more mark{RESOLVE_AT - record.actions.length > 1 ? 's' : ''} in the rooms and it will be accessioned here.</p>}
+          {wall.map((entry) => <WallTile key={entry.key} entry={entry} isYou={entry.key === 'you'} />)}
         </section>
       ) : (
-        <QuarterCollectionReveal currentFamily={currentFamily} />
+        <QuarterCollectionReveal currentFamily={currentFamily} name={record.name} />
       )}
 
       <footer className="collection-room-footer"><div><Monogram /><span>NORTH QUARTER PUBLIC LIBRARY</span></div><strong>YOUR LIBRARY. YOUR WAY IN.</strong><button onClick={() => navigate('/')}>RETURN TO COMMON ROOM</button></footer>
@@ -792,7 +1141,7 @@ function NotFound({ navigate }) {
 
 function App() {
   const [path, setPath] = usePath()
-  const { record, addAction, addSecret, reset } = useMemberRecord()
+  const { record, lastMark, addAction, addSecret, setName, setSignature, markStampSeen, reset } = useMemberRecord()
   const [transition, setTransition] = useState(null)
 
   const navigate = (next) => {
@@ -811,7 +1160,7 @@ function App() {
     window.setTimeout(() => setTransition(null), 720)
   }
 
-  const props = { path, navigate, record, addAction, addSecret, reset }
+  const props = { path, navigate, record, addAction, addSecret, setName, setSignature, markStampSeen, reset }
   let page
   if (path === '/') page = <Lobby {...props} />
   else if (path === '/stacks') page = <StacksRoom {...props} />
@@ -825,6 +1174,7 @@ function App() {
   return (
     <>
       {page}
+      <MarkSlip lastMark={lastMark} />
       <div className={`passage-transition ${transition ? 'is-active' : ''} ${transition ? `trace-from-${transition.from} trace-to-${transition.to}` : ''}`} aria-hidden="true">
         {transition && (
           <>

@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Public+Sans:wght@400;500;600;700&display=swap');
 
 :root {
   --paper-100: #F7F3EA;
@@ -8,7 +7,7 @@
   --maker-700: #94452F;
   --seeker-800: #26374B;
   --local-700: #3F614D;
-  --serif: 'Newsreader', Georgia, serif;
+  --serif: 'Newsreader Variable', 'Newsreader', Georgia, serif;
   --sans: 'Public Sans', Arial, sans-serif;
   font-family: var(--sans);
   color: var(--ink-900);
