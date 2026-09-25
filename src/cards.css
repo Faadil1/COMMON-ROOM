@@ -1,0 +1,104 @@
+/* NORTH QUARTER CARD OBJECT — tilt, light, flip */
+.lc-svg { display: block; width: 100%; height: auto; border-radius: 3.5% / 5.6%; }
+.lc-object {
+  --rx: 0deg; --ry: 0deg; --gx: 50%; --gy: 50%; --glare: 0;
+  position: relative;
+  width: 100%;
+  perspective: 1400px;
+}
+.lc-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform .5s cubic-bezier(.2,.8,.2,1);
+}
+.lc-object:hover .lc-inner { transition: transform .12s linear; }
+.lc-object.is-flipped .lc-inner { transform: rotateX(var(--rx)) rotateY(calc(180deg + var(--ry))); transition: transform .8s cubic-bezier(.3,.9,.2,1); }
+.lc-face {
+  position: relative;
+  border-radius: 3.5% / 5.6%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 2px 0 rgba(0,0,0,.25), 0 28px 60px rgba(0,0,0,.38), 0 8px 18px rgba(0,0,0,.2);
+}
+.lc-face-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+.lc-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: calc(var(--glare) * .9);
+  transition: opacity .3s ease;
+  background:
+    radial-gradient(circle at var(--gx) var(--gy), rgba(255,255,255,.34), rgba(255,255,255,0) 42%),
+    linear-gradient(115deg, transparent 30%, rgba(255,236,190,.16) 45%, rgba(190,230,255,.12) 52%, transparent 66%);
+  background-size: 100% 100%, 220% 220%;
+  background-position: 0 0, var(--gx) var(--gy);
+  mix-blend-mode: soft-light;
+}
+.lc-flip {
+  display: block;
+  margin: 18px auto 0;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  background: transparent;
+  color: inherit;
+  font: 700 9px/1 var(--sans);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: .75;
+}
+.lc-flip:hover { opacity: 1; }
+.lc-object.is-landing .lc-stamp { animation: lc-stamp-land 1.05s cubic-bezier(.2,.9,.25,1) both; transform-box: fill-box; transform-origin: center; }
+.lc-object.is-landing .lc-inner { animation: lc-press .9s ease both; }
+@keyframes lc-stamp-land {
+  0%, 44% { opacity: 0; scale: 2.2; }
+  58% { opacity: 1; scale: .92; }
+  72% { scale: 1.04; }
+  100% { opacity: 1; scale: 1; }
+}
+@keyframes lc-press { 0%, 52% { translate: 0 0; } 58% { translate: 0 6px; } 74% { translate: 0 -1px; } 100% { translate: 0 0; } }
+
+/* Specimen board */
+.lc-board { min-height: 100svh; padding: 56px clamp(16px, 4vw, 64px) 80px; background: #151410; color: #f3ecdc; font-family: var(--sans); }
+.lc-board h1 { margin: 0 0 8px; font: 500 clamp(40px, 5vw, 72px)/.95 var(--serif); letter-spacing: -.03em; }
+.lc-board > p { max-width: 640px; margin: 0 0 44px; font: italic 400 20px/1.3 var(--serif); opacity: .72; }
+.lc-board-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 56px 48px; }
+.lc-board-grid figure { margin: 0; display: grid; gap: 14px; }
+.lc-board-pair { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.lc-board-grid figcaption { font: 700 10px/1.4 var(--sans); letter-spacing: .16em; opacity: .6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-inner, .lc-object.is-flipped .lc-inner { transition: none; }
+  .lc-object.is-landing .lc-stamp, .lc-object.is-landing .lc-inner { animation: none; }
+}
+
+/* Integration */
+.lobby-vitrine .lc-object { width: min(100%, 540px); margin-inline: auto; color: #f3ecdc; }
+.record-object .member-card-stack > .lc-object { position: relative; z-index: 3; width: min(100%, 720px); color: #f3ecdc; }
+.record-object .member-card-stack { width: min(100%, 720px); }
+
+.nq-tile2 { position: relative; transition: transform .25s ease; animation: nq-tile-in .6s ease both; }
+.nq-tile2 .lc-svg { box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+.nq-tile2:hover { transform: translateY(-4px) rotate(-.6deg); }
+.nq-tile2.is-you { z-index: 2; outline: 2px solid #f3ecdc; outline-offset: 6px; border-radius: 4%; }
+.nq-wall { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 22px; }
+
+.nq-export-card { position: relative; display: block; }
+.nq-export-card .nq-export-back { position: absolute; width: 700px; right: 10px; top: -8px; transform: rotate(5deg); filter: drop-shadow(0 30px 50px rgba(0,0,0,.5)); }
+.nq-export-card .nq-export-front { position: absolute; width: 760px; left: 10px; top: 40px; transform: rotate(-3deg); filter: drop-shadow(0 40px 60px rgba(0,0,0,.6)); }
+.nq-export-fonts { position: absolute; opacity: 0; font-size: 2px; }
+.lc-refs { max-width: 900px; margin: -24px 0 48px; padding: 0; list-style: none; display: grid; gap: 8px; font: 400 14px/1.4 var(--sans); color: rgba(243,236,220,.7); }
+.lc-refs b { color: #f3ecdc; font-weight: 700; margin-right: 6px; }
+.lc-face { filter: drop-shadow(0 22px 34px rgba(0,0,0,.4)); box-shadow: none; }
+
+/* 3D accession stage */
+.lc3d { position: relative; width: min(100%, 780px); aspect-ratio: 1.3; margin-inline: auto; }
+.lc3d-stage { position: absolute; inset: 0; cursor: grab; touch-action: pan-y; opacity: 0; transition: opacity .6s ease; }
+.lc3d-stage:active { cursor: grabbing; }
+.lc3d-stage canvas { display: block; width: 100% !important; height: 100% !important; }
+.lc3d.is-ready .lc3d-stage { opacity: 1; }
+.lc3d-fallback { position: absolute; inset: 9% 8%; display: grid; place-items: center; }
+.lc3d-hint { position: absolute; left: 0; right: 0; bottom: 2%; text-align: center; font: 700 9px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: rgba(243,236,220,.55); pointer-events: none; }
+.record-object:has(.lc3d) .hidden-emboss { display: none; }
