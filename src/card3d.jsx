@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { toCanvas } from 'html-to-image'
+import { svgToCanvas } from './raster.js'
+import { play } from './sound.js'
 import {
   W, H, CODE_ORDER, HOLE_R, TOP_Y, BOT_Y, holeX, notchCode,
   CardFront, CardBack, StampSheet, FoilMask, stampInk,
@@ -74,8 +75,9 @@ function cardShape({ actions, secrets, number, mirror = false, withHoles = true 
   return shape
 }
 
-async function rasterise(node, pixelRatio) {
-  return toCanvas(node, { pixelRatio, cacheBust: false, backgroundColor: undefined })
+function rasterise(host, pr) {
+  const svg = host.querySelector('svg')
+  return svgToCanvas(svg, { width: W, height: H, scale: pr })
 }
 
 function maskToMaps(maskCanvas) {
@@ -190,7 +192,7 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
 
     // Interaction state
     const state = { yaw: -0.18, pitch: 0.08, tYaw: -0.18, tPitch: 0.08, flip: 0, tFlip: 0, spread: 0, tSpread: 0, drag: null, moved: 0, px: 0, py: 0, dip: 0, stampT: 1, visible: true }
-    apiRef.current.flip = () => { state.tFlip = state.tFlip ? 0 : Math.PI; setFlipped(Boolean(state.tFlip)) }
+    apiRef.current.flip = () => { state.tFlip = state.tFlip ? 0 : Math.PI; setFlipped(Boolean(state.tFlip)); play('paper') }
     apiRef.current.land = () => { state.stampT = 0 }
 
     const onDown = (e) => { state.drag = { x: e.clientX, y: e.clientY, yaw: state.tYaw, pitch: state.tPitch }; state.moved = 0; wrap.setPointerCapture?.(e.pointerId) }
@@ -225,7 +227,6 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
     const strata = []
 
     const build = async () => {
-      await document.fonts?.ready
       const host = hostRef.current
       if (!host || disposed) return
       const pr = window.innerWidth < 700 ? 1.6 : 2.4
@@ -344,6 +345,7 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
             stampPivot.rotation.z = (1 - e) * -0.35
             stampMat.opacity = 0.25 + e * 0.5
           } else {
+            if (!state.stampSounded) { state.stampSounded = true; play('stamp') }
             const q = (p - 0.55) / 0.45
             stampPivot.position.z = DEPTH + 0.12
             stampPivot.scale.setScalar(1 + Math.sin(q * Math.PI) * -0.04)
@@ -389,7 +391,6 @@ export default function Card3D({ family, record, owner, entries, ceremony, fallb
       {!ready && <div className="lc3d-fallback">{fallback}</div>}
       <div className="lc3d-hint">{ready ? (flipped ? 'Drag to turn · tap for the front' : 'Drag to turn · tap to see the back') : 'Pressing your card…'}</div>
       <div className="nq-export-host" ref={hostRef} aria-hidden="true">
-        <span className="nq-export-fonts"><i style={{ fontFamily: "'Courier Prime'", fontWeight: 700 }}>a</i><i style={{ fontFamily: "'Courier Prime'" }}>a</i><i style={{ fontFamily: "'Public Sans'", fontWeight: 900 }}>a</i><i style={{ fontFamily: "'Public Sans'", fontWeight: 800 }}>a</i><i style={{ fontFamily: "'Newsreader Variable'", fontStyle: 'italic' }}>a</i></span>
         <div data-t="front" style={{ width: W }}><CardFront family={family} actions={record.actions} secrets={record.secrets} owner={owner} /></div>
         <div data-t="back" style={{ width: W }}><CardBack family={family} owner={owner} entries={entries} /></div>
         <div data-t="foil" style={{ width: W }}><FoilMask family={family} /></div>

@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useRef, useState } from 'react'
+import { play } from './sound.js'
 
 /* NORTH QUARTER LIBRARY CARD — drawn as one SVG object (856 × 540, CR80 proportions).
    One shared geometry, four materials, and a generative accession rosette that is
@@ -456,12 +457,13 @@ export function notchCode(number) {
   return Array.from({ length: 14 }, (_, i) => Boolean((n >> i) & 1))
 }
 
-function NotchMask({ uid, actions, secrets, number, open }) {
+function NotchMask({ uid, actions, secrets, number, open, hollow }) {
   const have = new Set([...actions, ...secrets.map((id) => `s:${id}`)])
   const bits = open ? [] : notchCode(number)
   return (
     <mask id={`${uid}-notch`} maskUnits="userSpaceOnUse" x="0" y="0" width={W} height={H}>
       <rect width={W} height={H} fill="#fff" />
+      {hollow && <path d={APERTURE} fill="#000" />}
       {CODE_ORDER.map((id, i) => (
         <g key={id}>
           <circle cx={holeX(i)} cy={TOP_Y} r={HOLE_R} fill="#000" />
@@ -578,7 +580,7 @@ function Ephemera({ family, secrets, apInk, pencil }) {
 
 const AP_INK = { reader: '#2b2823', maker: '#2b2823', seeker: '#eef3fa', local: '#2b2823', open: '#2b2823' }
 
-export function CardFront({ family = 'reader', open = false, actions = [], secrets = [], owner, detail = 1, stamp = false, compact = false }) {
+export function CardFront({ family = 'reader', open = false, actions = [], secrets = [], owner, detail = 1, stamp = false, compact = false, hollow = false }) {
   const raw = useId()
   const uid = `c${raw.replace(/[^a-zA-Z0-9]/g, '')}`
   const fam = open ? 'open' : family
@@ -591,7 +593,7 @@ export function CardFront({ family = 'reader', open = false, actions = [], secre
   return (
     <svg className={`lc-svg lc-${fam}`} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title} library card${owner?.name ? ` for ${owner.name}` : ''}`}>
       <Defs uid={uid} family={fam} />
-      <defs><NotchMask uid={uid} actions={actions} secrets={secrets} number={owner?.number} open={open} /></defs>
+      <defs><NotchMask uid={uid} actions={actions} secrets={secrets} number={owner?.number} open={open} hollow={hollow} /></defs>
       <g mask={`url(#${uid}-notch)`}>
       <g clipPath={`url(#${uid}-card)`}>
         <Material uid={uid} seed={seed} />
@@ -729,7 +731,7 @@ export function CardObject({ front, back, flippable = true, className = '', tilt
         {back && <div className="lc-face lc-face-back">{back}<span className="lc-glare" aria-hidden="true" /></div>}
       </div>
       {flippable && back && (
-        <button type="button" className="lc-flip" onClick={() => setFlipped((v) => !v)}>
+        <button type="button" className="lc-flip" onClick={() => { setFlipped((v) => !v); play('paper') }}>
           {flipped ? '↺ Front of the card' : '↻ Turn the card over'}
         </button>
       )}

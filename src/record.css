@@ -42,190 +42,18 @@
 .nq-passport-copy { display: grid; gap: 3px; }
 .nq-passport-copy strong { font: 700 9px/1 var(--sans); letter-spacing: .13em; }
 .nq-passport-copy small { font: 500 8px/1 var(--sans); letter-spacing: .08em; opacity: .6; }
-.member-passport { display: none; }
 
 /* ───────────────── The card ───────────────── */
-.member-card.nq-card {
-  container-type: inline-size;
-  padding: 0;
-}
-.nq-card .card-brand,
-.nq-card .card-title-row,
-.nq-card .card-statement,
-.nq-card .card-member,
-.nq-card .card-detail,
-.nq-card .trace-spine { display: none; }
-
-.nq-card .accession-rail { left: 2.2cqw; }
-.nq-card .accession-rail span { font-size: max(5px, .95cqw); }
-
-.nq-card-brand {
-  position: absolute;
-  z-index: 5;
-  left: 7.4cqw;
-  top: 5.6cqw;
-  display: flex;
-  align-items: center;
-  gap: 1.8cqw;
-}
-.nq-card-brand .monogram {
-  width: 5.4cqw;
-  height: 4.8cqw;
-  font-size: 4.1cqw;
-  color: rgba(28,27,24,.86);
-  text-shadow: 1px 1px 0 rgba(255,255,255,.7);
-}
-.nq-card-brand div { display: grid; gap: .3cqw; }
-.nq-card-brand strong { font: 600 max(7px, 1.9cqw)/1 var(--sans); letter-spacing: .01em; }
-.nq-card-brand span { font: 400 max(6px, 1.65cqw)/1 var(--sans); opacity: .7; }
-
-.nq-card-body {
-  position: absolute;
-  z-index: 5;
-  left: 7.4cqw;
-  top: 19cqw;
-  width: 50cqw;
-}
-.nq-card-edition {
-  display: block;
-  font: 700 max(5px, 1.3cqw)/1 var(--sans);
-  letter-spacing: .16em;
-  color: var(--family-accent);
-}
-.nq-card-title {
-  margin: 1.3cqw 0 0;
-  font: 500 8.6cqw/.86 var(--serif);
-  letter-spacing: -.035em;
-  text-transform: uppercase;
-  font-variation-settings: 'opsz' 72;
-}
-.nq-card-title.is-long { font-size: 5.6cqw; letter-spacing: -.02em; }
-.nq-card-statement {
-  max-width: 26ch;
-  margin: 1.8cqw 0 0;
-  font: italic 400 max(8px, 2.25cqw)/1.18 var(--serif);
-  color: rgba(28,27,24,.78);
-}
-
-.nq-card-foot {
-  position: absolute;
-  z-index: 5;
-  left: 7.4cqw;
-  bottom: 5.2cqw;
-  width: 50cqw;
-}
-.nq-card-sign {
-  position: relative;
-  height: 7.4cqw;
-  display: flex;
-  align-items: flex-end;
-  border-bottom: 1px solid rgba(28,27,24,.32);
-}
-.nq-signature {
-  position: absolute;
-  left: -1cqw;
-  bottom: -1.6cqw;
-  height: 9.5cqw;
-  width: auto;
-  max-width: 100%;
-  overflow: visible;
-}
-.nq-signature path {
-  fill: none;
-  stroke: var(--nq-ink-pen);
-  stroke-width: 4.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: .9;
-}
-.nq-signature-name {
-  padding-bottom: .5cqw;
-  font: italic 400 4.2cqw/1 var(--serif);
-  color: var(--nq-ink-pen);
-  letter-spacing: -.01em;
-}
-.nq-signature-empty {
-  padding-bottom: .7cqw;
-  font: italic 400 max(7px, 1.8cqw)/1 var(--serif);
-  opacity: .42;
-}
-.nq-card-meta {
-  display: grid;
-  grid-template-columns: 1.15fr 1fr .95fr;
-  gap: 1.6cqw;
-  margin: 1.4cqw 0 0;
-}
-.nq-card-meta div { min-width: 0; }
-.nq-card-meta dt {
-  font: 600 max(5px, 1.05cqw)/1 var(--sans);
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  opacity: .5;
-}
-.nq-card-meta dd {
-  margin: .7cqw 0 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font: 700 max(6px, 1.55cqw)/1 var(--sans);
-  letter-spacing: .06em;
-  font-variant-numeric: tabular-nums;
-}
 
 /* Aperture labels become readable at card scale. */
-.nq-card .aperture-code { font-size: max(5px, 1.15cqw); }
-.nq-card .accession-aperture svg text { font-size: 7px; }
 
 /* Patina stays as texture; its micro-labels would compete with the new record lines. */
-.nq-card .card-patina b,
-.nq-card .patina-secret { display: none; }
-.nq-card .patina-reader { left: 34%; top: 60%; width: 24%; opacity: .7; }
 
 /* Compact card (collection, lens) keeps only identity. */
-.nq-card.member-card--compact .nq-card-body { top: 24cqw; }
-.nq-card.member-card--compact .nq-card-title { font-size: 10cqw; }
 
 /* Unregistered: the card is an outline waiting for evidence. */
-.nq-card.member-card--unregistered .nq-card-title { color: rgba(28,27,24,.72); }
-.nq-card.member-card--unregistered .nq-card-edition { color: rgba(28,27,24,.5); }
 
 /* ───────────────── Accession stamp ───────────────── */
-.nq-stamp {
-  position: absolute;
-  z-index: 8;
-  right: 2.6cqw;
-  bottom: 2.4cqw;
-  width: 24cqw;
-  aspect-ratio: 1;
-  color: var(--family-accent);
-  transform: rotate(-13deg);
-  mix-blend-mode: multiply;
-  opacity: .88;
-  pointer-events: none;
-}
-.nq-stamp svg { width: 100%; height: 100%; overflow: visible; }
-.nq-stamp .stamp-ring { fill: none; stroke: currentColor; stroke-width: 5; }
-.nq-stamp .stamp-ring-thin { stroke-width: 2; }
-.nq-stamp text { fill: currentColor; text-anchor: middle; font-family: var(--sans); }
-.nq-stamp .stamp-arc { font-size: 14.5px; font-weight: 700; letter-spacing: 3.1px; text-anchor: start; }
-.nq-stamp .stamp-small { font-size: 11px; font-weight: 700; letter-spacing: 2.4px; }
-.nq-stamp .stamp-date { font-size: 21px; font-weight: 700; letter-spacing: 1px; }
-
-.nq-stamp.is-landing { animation: nq-stamp-land 1.05s cubic-bezier(.2,.9,.25,1) both; }
-@keyframes nq-stamp-land {
-  0% { opacity: 0; transform: translate(-14%, -30%) rotate(-24deg) scale(2.3); filter: blur(3px); }
-  46% { opacity: 0; transform: translate(-4%, -8%) rotate(-15deg) scale(1.35); filter: blur(1px); }
-  58% { opacity: .96; transform: rotate(-13deg) scale(.92); filter: blur(0); }
-  70% { transform: rotate(-13deg) scale(1.03); }
-  100% { opacity: .88; transform: rotate(-13deg) scale(1); }
-}
-.member-card.is-stamped { animation: nq-card-press .9s ease both; }
-@keyframes nq-card-press {
-  0%, 52% { translate: 0 0; }
-  58% { translate: 0 5px; scale: .985; }
-  72% { translate: 0 -1px; scale: 1.002; }
-  100% { translate: 0 0; scale: 1; }
-}
 
 /* ───────────────── Date-due slip (every registered mark) ───────────────── */
 .nq-slip {
@@ -351,12 +179,10 @@
   cursor: pointer;
 }
 .record-actions .room-primary { gap: 12px; }
-.record-object .member-card.nq-card { overflow: hidden; }
 
 /* ───────────────── Lobby ───────────────── */
 .lobby-copy p em,
 .lobby-remembered em { font-style: italic; color: var(--room-paper); }
-.lobby-vitrine .member-card.nq-card { width: min(100%, 520px); margin-inline: auto; }
 
 /* ───────────────── Living collection wall ───────────────── */
 .nq-wall {
@@ -375,60 +201,6 @@
   color: rgba(247,243,234,.78);
   font: italic 400 17px/1.25 var(--serif);
 }
-.nq-tile {
-  --family-accent: var(--reader-700);
-  container-type: inline-size;
-  position: relative;
-  aspect-ratio: 1.586 / 1;
-  border-radius: 8px;
-  color: var(--room-ink);
-  background: linear-gradient(125deg, #f2e9da, #ddcfb7 70%, #e8dcc8);
-  box-shadow: 0 10px 24px rgba(0,0,0,.24);
-  transition: transform .25s ease, box-shadow .25s ease;
-  animation: nq-tile-in .6s ease both;
-}
-.nq-tile:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(0,0,0,.32); }
-.nq-tile .evidence-mark { position: absolute; inset: 0; }
-.nq-tile .trace-spine { display: none; }
-.nq-tile .aperture-code { font-size: 3.2cqw; }
-.nq-tile header {
-  position: absolute;
-  left: 7cqw;
-  top: 7cqw;
-  display: grid;
-  gap: 2cqw;
-  font: 700 3.6cqw/1 var(--sans);
-  letter-spacing: .1em;
-}
-.nq-tile header span { opacity: .6; font-variant-numeric: tabular-nums; }
-.nq-tile header b { color: var(--family-accent); font-size: 3cqw; letter-spacing: .14em; }
-.nq-tile > strong {
-  position: absolute;
-  left: 7cqw;
-  top: 26cqw;
-  font: 500 9cqw/1 var(--serif);
-  letter-spacing: -.02em;
-}
-.nq-tile footer {
-  position: absolute;
-  left: 7cqw;
-  bottom: 6cqw;
-  width: 50cqw;
-  display: grid;
-  gap: 1.5cqw;
-  padding-top: 1cqw;
-}
-.nq-tile footer .nq-signature-name,
-.nq-tile footer .nq-signature-empty { font-size: 7.2cqw; padding: 0; border-bottom: 1px solid rgba(28,27,24,.25); }
-.nq-tile footer .nq-signature { position: relative; left: -2cqw; bottom: 0; height: 12cqw; border-bottom: 1px solid rgba(28,27,24,.25); }
-.nq-tile footer small { font: 700 2.6cqw/1 var(--sans); letter-spacing: .16em; opacity: .5; }
-.nq-tile.is-you {
-  z-index: 2;
-  outline: 2px solid var(--family-accent);
-  outline-offset: 4px;
-  box-shadow: 0 0 0 10px color-mix(in srgb, var(--family-accent) 22%, transparent), 0 22px 44px rgba(0,0,0,.4);
-  animation: nq-tile-in .6s ease both, nq-you 2.8s ease 0.6s 2;
-}
 .nq-tile-you {
   position: absolute;
   z-index: 3;
@@ -442,35 +214,9 @@
   letter-spacing: .16em;
   white-space: nowrap;
 }
-@keyframes nq-tile-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes nq-you {
-  0%, 100% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--family-accent) 22%, transparent), 0 22px 44px rgba(0,0,0,.4); }
-  50% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--family-accent) 8%, transparent), 0 22px 44px rgba(0,0,0,.4); }
-}
-.living-wall { display: none; }
 
 /* ───────────────── Export frame (offscreen, rendered to PNG) ───────────────── */
 .nq-export-host { position: fixed; left: -12000px; top: 0; pointer-events: none; }
-.nq-export {
-  width: 1200px;
-  height: 900px;
-  padding: 64px 90px 70px;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 30px;
-  color: #f7f3ea;
-  font-family: var(--sans);
-  background:
-    radial-gradient(ellipse at 50% 42%, rgba(247,243,234,.09), transparent 60%),
-    repeating-linear-gradient(90deg, rgba(247,243,234,.025) 0 1px, transparent 1px 64px),
-    #171612;
-}
-.nq-export-top { display: flex; justify-content: space-between; font: 700 13px/1 var(--sans); letter-spacing: .2em; opacity: .7; }
-.nq-export-card { display: grid; place-items: center; }
-.nq-export-card .member-card { width: 900px; box-shadow: 0 40px 90px rgba(0,0,0,.55); }
-.nq-export-foot { display: flex; justify-content: space-between; align-items: end; gap: 24px; }
-.nq-export-foot strong { font: italic 400 34px/1 var(--serif); }
-.nq-export-foot span { font: 700 12px/1 var(--sans); letter-spacing: .14em; opacity: .6; }
 
 /* ───────────────── Responsive ───────────────── */
 @media (max-width: 1080px) {
@@ -494,32 +240,19 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nq-stamp.is-landing,
-  .member-card.is-stamped,
+  
   .nq-slip,
-  .nq-slip-stamp,
-  .nq-tile,
-  .nq-tile.is-you { animation: none !important; }
+  .nq-slip-stamp { animation: none !important; }
 }
 
 /* ───────────────── Fixes found in runtime QA ───────────────── */
 .lobby-copy .room-kicker { margin-bottom: clamp(30px, 3vw, 44px); }
 .lobby-copy h1 { font-size: clamp(76px, 8.2vw, 138px); }
-.lobby-vitrine .member-card.nq-card { width: min(100%, 560px); }
 
 /* Stamp lands on paper, not inside the dark aperture where multiply ink disappears. */
-.nq-stamp { right: auto; bottom: auto; left: 37cqw; top: 1.6cqw; width: 21cqw; }
 
 /* Member Lens: a larger instrument so the revealed memory is actually readable. */
-.card-lens-stage .lens-card,
-.card-lens-stage .lens-reveal-window { width: min(440px, 62%); }
-.lens-reveal-window > span { font-size: 7px; letter-spacing: .12em; }
-.lens-reveal-window > strong { font-size: clamp(13px, 1.25vw, 18px); line-height: 1.02; }
-.lens-reveal-window > small { font-size: 8px; line-height: 1.25; opacity: .82; }
-.nq-tile .aperture-code { display: none; }
 /* PNG export: blend modes don't survive rasterisation, so the paper is flattened to its warm base. */
-.nq-export .member-card .paper-grain { background: linear-gradient(125deg, #f4ecde, #dfd2bc 68%, #e9ddca); }
-.nq-export .card-patina { mix-blend-mode: normal; }
 /* The mobile rule hiding the brand label also hid the N/Q letters of the monogram. */
 @media (max-width: 760px) {
   .room-brand .monogram span { display: block; }
