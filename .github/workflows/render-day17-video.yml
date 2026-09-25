@@ -1,0 +1,66 @@
+name: Render COMMON ROOM Day 17 final video
+
+on:
+  push:
+    branches:
+      - video-capture-day17
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout capture branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install app dependencies
+        run: npm install
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture real Cloudflare runtime
+        env:
+          TARGET_URL: https://living-collection.common-room-2l0.pages.dev
+        run: node scripts/capture-final-video.mjs
+
+      - name: Prepare ffmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          ffmpeg -version | head -n 1
+
+      - name: Build final 1080p film
+        run: |
+          mkdir -p final-video
+
+          ffmpeg -y             -f lavfi -i color=c=0x171612:s=1920x1080:r=30:d=3             -vf "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf:text='COMMON ROOM':fontcolor=0xF7F3EA:fontsize=92:x=(w-text_w)/2:y=360,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='DAY 17 / NORTH QUARTER PUBLIC LIBRARY':fontcolor=0xF7F3EA@0.70:fontsize=24:x=(w-text_w)/2:y=500,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf:text='A library card you accumulate, not one you receive.':fontcolor=0xF7F3EA@0.92:fontsize=36:x=(w-text_w)/2:y=600"             -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p final-video/intro.mp4
+
+          ffmpeg -y -i video-raw/capture.webm             -vf "scale=1920:1080:flags=lanczos,format=yuv420p,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='01 / ROOMS LEAVE THE EVIDENCE':fontcolor=white@0.82:fontsize=22:x=54:y=h-72:enable='between(t,0,17)',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='02 / THE CARD REMEMBERS IN LAYERS':fontcolor=white@0.82:fontsize=22:x=54:y=h-72:enable='between(t,17,29)',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='03 / APERTURE BECOMES LENS':fontcolor=white@0.82:fontsize=22:x=54:y=h-72:enable='between(t,29,37)',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='04 / THE LIVING COLLECTION':fontcolor=white@0.82:fontsize=22:x=54:y=h-72:enable='between(t,37,48)',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='05 / INDIVIDUAL TRACE BECOMES CIVIC MEMORY':fontcolor=white@0.82:fontsize=22:x=54:y=h-72:enable='between(t,48,60)'"             -an -c:v libx264 -preset medium -crf 18 -r 30 final-video/runtime.mp4
+
+          ffmpeg -y             -f lavfi -i color=c=0xF7F3EA:s=1920x1080:r=30:d=4             -vf "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf:text='YOU DO NOT RECEIVE A CARD.':fontcolor=0x1C1B18:fontsize=56:x=(w-text_w)/2:y=390,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf:text='YOU ACCUMULATE ONE.':fontcolor=0x1C1B18:fontsize=72:x=(w-text_w)/2:y=485,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='COMMON ROOM / DAY 17':fontcolor=0x1C1B18@0.58:fontsize=22:x=(w-text_w)/2:y=640"             -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p final-video/outro.mp4
+
+          printf "file 'intro.mp4'\nfile 'runtime.mp4'\nfile 'outro.mp4'\n" > final-video/concat.txt
+          (
+            cd final-video
+            ffmpeg -y -f concat -safe 0 -i concat.txt -c copy COMMON-ROOM-Day17-FINAL.mp4
+          )
+
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,width,height,r_frame_rate -of json final-video/COMMON-ROOM-Day17-FINAL.mp4 > final-video/manifest.json
+
+      - name: Upload final film
+        uses: actions/upload-artifact@v4
+        with:
+          name: common-room-day17-final-video
+          path: |
+            final-video/COMMON-ROOM-Day17-FINAL.mp4
+            final-video/manifest.json
+          if-no-files-found: error
+          retention-days: 14
