@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ArrowRight, Download, Eraser, RotateCcw } from 'lucide-react'
-import { toPng } from 'html-to-image'
+import { createPortal } from 'react-dom'
+import { ArrowRight, Download, Eraser, Printer, RotateCcw, Share2, Volume2, VolumeX, X } from 'lucide-react'
 import '@fontsource-variable/newsreader/opsz.css'
 import '@fontsource-variable/newsreader/opsz-italic.css'
 import '@fontsource/public-sans/400.css'
@@ -13,6 +13,26 @@ import './refinement.css'
 import './rooms.css'
 import './memorability.css'
 import './record.css'
+import '@fontsource/courier-prime/400.css'
+import '@fontsource/courier-prime/700.css'
+import '@fontsource/public-sans/800.css'
+import '@fontsource/public-sans/900.css'
+import './cards.css'
+import './rooms2.css'
+import { StacksScene, WorkshopScene, IndexScene, QuarterScene } from './rooms.jsx'
+import { play, soundEnabled, setSoundEnabled, onSoundChange } from './sound.js'
+import { encodeCard, decodeCard } from './share.js'
+import { CardFront, CardBack, CardObject, backEntries } from './cardArt.jsx'
+
+const Card3D = lazy(() => import('./card3d.jsx'))
+function supports3D() {
+  try {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false
+    if (new URLSearchParams(window.location.search).has('flat')) return false
+    const c = document.createElement('canvas')
+    return Boolean(c.getContext('webgl2') || c.getContext('webgl'))
+  } catch { return false }
+}
 
 const FAMILY = {
   reader: {
@@ -116,7 +136,7 @@ const TRACE_FORM = {
 
 const STORAGE_KEY = 'common-room-member-record-v2'
 
-const EMPTY_RECORD = { actions: [], secrets: [], name: '', signature: [], startedAt: null, issuedAt: null, stampSeen: false }
+const EMPTY_RECORD = { actions: [], secrets: [], name: '', signature: [], startedAt: null, issuedAt: null, stampSeen: false, times: {} }
 const RESOLVE_AT = 3
 
 function safeLoadRecord() {
@@ -132,6 +152,7 @@ function safeLoadRecord() {
       startedAt: Number.isFinite(stored.startedAt) ? stored.startedAt : (actions.length ? Date.now() : null),
       issuedAt: Number.isFinite(stored.issuedAt) ? stored.issuedAt : (actions.length >= RESOLVE_AT ? Date.now() : null),
       stampSeen: Boolean(stored.stampSeen),
+      times: stored.times && typeof stored.times === 'object' ? stored.times : {},
     }
   } catch {
     return { ...EMPTY_RECORD }
@@ -215,14 +236,6 @@ function getOutcome(actions) {
   return leaders[0]
 }
 
-function getPatinaLevel(actions, secrets) {
-  const weight = actions.length + (secrets.length * 2)
-  if (weight >= 8) return 3
-  if (weight >= 4) return 2
-  if (weight >= 1) return 1
-  return 0
-}
-
 const LENS_CONTENT = {
   reader: {
     title: 'MARGIN / PREVIOUS HANDS',
@@ -246,24 +259,6 @@ const LENS_CONTENT = {
   },
 }
 
-function CardPatinaLayer({ actions = [], secrets = [], compact = false }) {
-  const scores = getFamilyScores(actions)
-  const level = getPatinaLevel(actions, secrets)
-  if (level === 0) return null
-
-  const secretFamilies = secrets.map((id) => SECRETS[id]?.family).filter(Boolean)
-  return (
-    <div className={`card-patina patina-level-${level} ${compact ? 'card-patina--compact' : ''}`} aria-hidden="true">
-      {scores.reader > 0 && <span className="patina-reader"><i /><i /><i /><b>p. {210 + scores.reader}</b></span>}
-      {scores.maker > 0 && <span className="patina-maker"><i /><i /><b>REG / +{scores.maker}</b></span>}
-      {scores.seeker > 0 && <span className="patina-seeker"><i /><i /><b>NQ.{String(20 + scores.seeker).padStart(3, '0')}</b></span>}
-      {scores.local > 0 && <span className="patina-local"><i /><i /><b>45.42° N</b></span>}
-      <span className="patina-edge" />
-      {secretFamilies.slice(-2).map((family, index) => <span key={`${family}-${index}`} className={`patina-secret patina-secret-${family} patina-secret-${index + 1}`}>NQ / FOUND</span>)}
-    </div>
-  )
-}
-
 
 const FAMILY_ACTION_ORDER = {
   reader: ['stacks-fiction', 'stacks-essay', 'stacks-poetry'],
@@ -272,82 +267,15 @@ const FAMILY_ACTION_ORDER = {
   local: ['quarter-market', 'quarter-school', 'quarter-river'],
 }
 
-function FamilyEvidenceMark({ family, actions = [], compact = false, unregistered = false }) {
-  const active = new Set(actions)
-  const familyActions = FAMILY_ACTION_ORDER[family] || []
-  const activeCount = familyActions.filter((id) => active.has(id)).length
-  const isActive = (id) => active.has(id)
-  const classFor = (id, base = 'evidence-stroke') => `${base} ${isActive(id) ? 'is-active' : ''}`
-  const apertureCode = {
-    reader: 'MARGIN / PAGE',
-    maker: 'REGISTER / PLATE',
-    seeker: '021 → 114 → 403',
-    local: 'MARKET → SCHOOL → RIVER',
-  }[family]
-
-  return (
-    <div className={`evidence-mark evidence-mark-${family} ${compact ? 'evidence-mark--compact' : ''} ${unregistered ? 'is-open' : ''}`} aria-hidden="true">
-      <div className="trace-spine">
-        <span>{unregistered ? 'OPEN TRACE' : `TRACE ${String(activeCount).padStart(2, '0')}`}</span>
-        {familyActions.map((id) => <i key={id} className={isActive(id) ? 'is-active' : ''} />)}
-      </div>
-      <div className="accession-aperture">
-        {family === 'reader' && (
-          <svg viewBox="0 0 100 100">
-            <path className="evidence-ghost" d="M19 12V88" />
-            <path className={classFor('stacks-fiction')} d="M28 24H82" />
-            <path className={classFor('stacks-essay')} d="M28 48H68" />
-            <path className={classFor('stacks-poetry')} d="M28 72H77" />
-            <circle className={classFor('stacks-fiction', 'evidence-node')} cx="19" cy="24" r="3.6" />
-            <circle className={classFor('stacks-essay', 'evidence-node')} cx="19" cy="48" r="3.6" />
-            <circle className={classFor('stacks-poetry', 'evidence-node')} cx="19" cy="72" r="3.6" />
-          </svg>
-        )}
-        {family === 'maker' && (
-          <svg viewBox="0 0 100 100">
-            <rect className={classFor('workshop-stock')} x="22" y="20" width="56" height="60" rx="2" />
-            <path className={classFor('workshop-align')} d="M10 50H90M50 10V90M43 43H57V57H43Z" />
-            <rect className={classFor('workshop-ink')} x="27" y="16" width="56" height="60" rx="2" />
-            <circle className={classFor('workshop-align', 'evidence-node')} cx="50" cy="50" r="4.2" />
-          </svg>
-        )}
-        {family === 'seeker' && (
-          <svg viewBox="0 0 100 100">
-            <path className="evidence-ghost" d="M15 76C27 60 35 54 47 56C60 58 64 28 86 28" />
-            <path className={`evidence-stroke ${isActive('index-021') && isActive('index-114') ? 'is-active' : ''}`} d="M15 76C27 60 35 54 47 56" />
-            <path className={`evidence-stroke ${isActive('index-114') && isActive('index-403') ? 'is-active' : ''}`} d="M47 56C60 58 64 28 86 28" />
-            <circle className={classFor('index-021', 'evidence-node')} cx="15" cy="76" r="4" />
-            <circle className={classFor('index-114', 'evidence-node')} cx="47" cy="56" r="4" />
-            <circle className={classFor('index-403', 'evidence-node')} cx="86" cy="28" r="4" />
-            <text x="9" y="90" stroke="none" fill="currentColor">021</text><text x="39" y="49" stroke="none" fill="currentColor">114</text><text x="73" y="20" stroke="none" fill="currentColor">403</text>
-          </svg>
-        )}
-        {family === 'local' && (
-          <svg viewBox="0 0 100 100">
-            <path className="evidence-ghost" d="M8 67L34 55L55 64L89 32M18 18L34 55L28 88M55 64L74 87" />
-            <path className={classFor('quarter-market')} d="M8 67L34 55L55 64" />
-            <path className={classFor('quarter-school')} d="M18 18L34 55" />
-            <path className={classFor('quarter-river')} d="M55 64L89 32" />
-            <circle className={classFor('quarter-market', 'evidence-node')} cx="34" cy="55" r="4" />
-            <circle className={classFor('quarter-school', 'evidence-node')} cx="18" cy="18" r="4" />
-            <circle className={classFor('quarter-river', 'evidence-node')} cx="89" cy="32" r="4" />
-          </svg>
-        )}
-        <span className="aperture-code">{unregistered ? 'NO TRACE / OPEN' : apertureCode}</span>
-      </div>
-    </div>
-  )
-}
-
-function CardLensReveal({ family, actions, secrets, navigate }) {
-  const [position, setPosition] = useState({ x: 62, y: 54 })
+function CardLensReveal({ family, actions, secrets, navigate, owner }) {
+  const [position, setPosition] = useState({ x: 58, y: 52 })
   const [dragging, setDragging] = useState(false)
   const content = LENS_CONTENT[family]
 
   const moveLens = (event) => {
     const rect = event.currentTarget.getBoundingClientRect()
-    const x = Math.min(82, Math.max(18, ((event.clientX - rect.left) / rect.width) * 100))
-    const y = Math.min(76, Math.max(24, ((event.clientY - rect.top) / rect.height) * 100))
+    const x = Math.min(80, Math.max(20, ((event.clientX - rect.left) / rect.width) * 100))
+    const y = Math.min(74, Math.max(26, ((event.clientY - rect.top) / rect.height) * 100))
     setPosition({ x, y })
   }
 
@@ -356,18 +284,18 @@ function CardLensReveal({ family, actions, secrets, navigate }) {
       <div className="lens-copy">
         <span className="room-kicker">MEMBER OPTICS / ACCESSION STRATA</span>
         <h2>The card changes<br /><em>what you can see.</em></h2>
-        <p>Your record has accumulated layers from what you actually did. Move the card across the archive: the accession aperture cuts through those strata and reveals the memory beneath.</p>
+        <p>Your card is also an instrument. Drag it across the public register: its window cuts through the page and shows the memory the library keeps for members.</p>
         <div className="lens-proof">
           <span>{actions.length} REGISTERED MARKS</span>
           <span>{secrets.length}/4 HIDDEN TRACES</span>
         </div>
         <button className="lens-continue" onClick={() => navigate('/collection')}>
-          <span>ENTER THE LIVING COLLECTION FROM THE LENS</span><ArrowRight size={15} />
+          <span>ENTER THE LIVING COLLECTION</span><ArrowRight size={15} />
         </button>
       </div>
       <div
-        className={`card-lens-stage ${dragging ? 'is-dragging' : ''}`}
-        onPointerDown={(event) => { setDragging(true); moveLens(event) }}
+        className={`card-lens-stage lens2-stage ${dragging ? 'is-dragging' : ''}`}
+        onPointerDown={(event) => { event.currentTarget.setPointerCapture?.(event.pointerId); setDragging(true); moveLens(event) }}
         onPointerMove={(event) => { if (dragging) moveLens(event) }}
         onPointerUp={() => setDragging(false)}
         onPointerCancel={() => setDragging(false)}
@@ -376,26 +304,18 @@ function CardLensReveal({ family, actions, secrets, navigate }) {
           <span>ACCESSION / NQ 1963–2026</span>
           <strong>NORTH QUARTER / PUBLIC MEMORY REGISTER</strong>
           <i />
-          <small>Move the card across this surface.</small>
+          <small>Drag your card across this surface.</small>
         </div>
-        <div
-          className="lens-reveal-window"
-          style={{ left: `${position.x}%`, top: `${position.y}%` }}
-          aria-hidden="true"
-        >
-          <span>MEMBER-ONLY ARCHIVE / REVEALED</span>
-          <strong>{content.primary}</strong>
-          <small>{content.secondary}</small>
+        <div className="lens2" style={{ left: `${position.x}%`, top: `${position.y}%` }}>
+          <div className="lens2-window" aria-hidden="true">
+            <span>MEMBER-ONLY ARCHIVE</span>
+            <strong>{content.title}</strong>
+            <p>{content.primary}</p>
+            <small>{content.secondary}</small>
+          </div>
+          <CardFront family={family} actions={actions} secrets={secrets} owner={owner} hollow compact />
+          <span className="lens2-cue">{dragging ? 'READING BENEATH…' : 'DRAG THE CARD'}</span>
         </div>
-        <div className="lens-card" style={{ left: `${position.x}%`, top: `${position.y}%` }}>
-          <span className="lens-card-paper" aria-hidden="true" />
-          <span className="lens-accession-aperture" aria-hidden="true"><i /></span>
-          <span className="lens-card-mark">NQ</span>
-          <span className="lens-card-mode">MEMBER LENS</span>
-          <strong>{content.title}</strong>
-          <small>DRAG TO READ BENEATH THE PUBLIC SURFACE</small>
-        </div>
-        <span className="lens-drag-cue" style={{ left: `${position.x}%`, top: `calc(${position.y}% + 116px)` }}>DRAG THE CARD → REVEAL</span>
       </div>
     </section>
   )
@@ -491,7 +411,7 @@ function AccessionStrata({ actions = [], secrets = [] }) {
   )
 }
 
-function StratifiedMemberCard({ family, actions, secrets, resolved, unregistered, owner, stamp, stampLanding }) {
+function StratifiedMemberCard({ family, actions, secrets, resolved, children }) {
   const visibleLayerCount = Math.min(actions.length, 4) + Math.min(secrets.length, 1)
   return (
     <div
@@ -499,87 +419,13 @@ function StratifiedMemberCard({ family, actions, secrets, resolved, unregistered
       style={{ '--family-accent': FAMILY[family].accent }}
     >
       {resolved && <AccessionStrata actions={actions} secrets={secrets} />}
-      <MemberCard family={family} actions={actions} secrets={secrets} resolved={resolved} unregistered={unregistered} owner={owner} stamp={stamp} stampLanding={stampLanding} />
+      {children}
       {resolved && (
         <span className="strata-index" aria-hidden="true">
           ACCESSION STRATA / {String(visibleLayerCount).padStart(2, '0')} VISIBLE / {String(actions.length + secrets.length).padStart(2, '0')} RECORDED
         </span>
       )}
     </div>
-  )
-}
-
-function SignatureMark({ strokes, name, placeholder = 'Borrower’s signature' }) {
-  if (strokes?.length) {
-    return (
-      <svg className="nq-signature" viewBox="0 0 400 120" preserveAspectRatio="xMinYMid meet" aria-hidden="true">
-        <path d={signaturePath(strokes)} fill="none" stroke="#1d2742" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-  if (name) return <span className="nq-signature-name">{name}</span>
-  return <span className="nq-signature-empty">{placeholder}</span>
-}
-
-function AccessionStamp({ family, date, landing = false }) {
-  const id = `stamp-${family}`
-  return (
-    <div className={`nq-stamp ${landing ? 'is-landing' : ''}`} aria-label={`Accessioned ${date}`}>
-      <svg viewBox="0 0 200 200">
-        <defs>
-          <path id={`${id}-arc`} d="M100 100 m-74 0 a74 74 0 1 1 148 0 a74 74 0 1 1 -148 0" />
-        </defs>
-        <g fill="currentColor">
-          <circle cx="100" cy="100" r="94" className="stamp-ring" fill="none" stroke="currentColor" strokeWidth="5" />
-          <circle cx="100" cy="100" r="60" className="stamp-ring stamp-ring-thin" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="1 3.2" />
-          <text className="stamp-arc" fontSize="14.5" fontWeight="700" letterSpacing="3.1" fontFamily="Public Sans, Arial, sans-serif"><textPath href={`#${id}-arc`} startOffset="0">NORTH QUARTER PUBLIC LIBRARY · ACCESSIONED ·</textPath></text>
-          <text x="100" y="88" textAnchor="middle" fontSize="11" fontWeight="700" letterSpacing="2.4" fontFamily="Public Sans, Arial, sans-serif" className="stamp-small">MEMBER RECORD</text>
-          <text x="100" y="112" textAnchor="middle" fontSize="21" fontWeight="700" letterSpacing="1" fontFamily="Public Sans, Arial, sans-serif" className="stamp-date">{date}</text>
-          <text x="100" y="132" textAnchor="middle" fontSize="11" fontWeight="700" letterSpacing="2.4" fontFamily="Public Sans, Arial, sans-serif" className="stamp-small">{FAMILY[family].title}</text>
-        </g>
-      </svg>
-    </div>
-  )
-}
-
-function MemberCard({ family = 'reader', actions = [], secrets = [], compact = false, resolved = false, unregistered = false, owner = null, stamp = false, stampLanding = false }) {
-  const meta = FAMILY[family]
-  const number = unregistered ? 'NQ / OPEN' : (owner?.number || meta.code)
-  const issued = unregistered ? '—' : (owner?.issued || formatIssueDate())
-  const title = unregistered ? 'Unregistered' : meta.title
-  return (
-    <article
-      className={`member-card nq-card family-${family} ${compact ? 'member-card--compact' : ''} ${resolved ? 'member-card--resolved' : ''} ${unregistered ? 'member-card--unregistered' : ''} ${stampLanding ? 'is-stamped' : ''}`}
-      style={{ '--family-accent': meta.accent }}
-    >
-      <div className="paper-grain" aria-hidden="true" />
-      <div className="accession-rail" aria-hidden="true"><span>ACCESSION / NQ</span><i /><i /><i /></div>
-      <div className="card-register" aria-hidden="true"><span /><span /></div>
-      <header className="nq-card-brand">
-        <Monogram />
-        <div><strong>North Quarter</strong><span>Public Library</span></div>
-      </header>
-      <div className="nq-card-body">
-        <span className="nq-card-edition">{unregistered ? 'MEMBER RECORD / OPEN' : `MEMBER RECORD / ${meta.edition}`}</span>
-        <h3 className={`nq-card-title ${unregistered ? 'is-long' : ''}`}>{title}</h3>
-        {!compact && <p className="nq-card-statement">{unregistered ? 'Leave three marks in the rooms. The card will follow.' : meta.statement}</p>}
-      </div>
-      <FamilyEvidenceMark family={family} actions={actions} compact={compact} unregistered={unregistered} />
-      <CardPatinaLayer actions={actions} secrets={secrets} compact={compact} />
-      {!compact && (
-        <footer className="nq-card-foot">
-          <div className="nq-card-sign">
-            <SignatureMark strokes={owner?.signature} name={owner?.name} placeholder={unregistered ? 'Signature after accession' : 'Borrower’s signature'} />
-          </div>
-          <dl className="nq-card-meta">
-            <div><dt>No.</dt><dd>{number}</dd></div>
-            <div><dt>Borrower</dt><dd>{owner?.name || (unregistered ? '—' : 'Unsigned')}</dd></div>
-            <div><dt>Issued</dt><dd>{issued}</dd></div>
-          </dl>
-        </footer>
-      )}
-      {stamp && !unregistered && <AccessionStamp family={family} date={issued} landing={stampLanding} />}
-    </article>
   )
 }
 
@@ -624,13 +470,14 @@ function useMemberRecord() {
         actions,
         startedAt: current.startedAt || now,
         issuedAt: current.issuedAt || (actions.length >= RESOLVE_AT ? now : null),
+        times: { ...current.times, [id]: now },
       }
     })
     setLastMark({ kind: 'action', id, at: Date.now(), count: record.actions.length + 1 })
   }
   const addSecret = (id) => {
     if (!SECRETS[id] || record.secrets.includes(id)) return
-    setRecord((current) => current.secrets.includes(id) ? current : { ...current, secrets: [...current.secrets, id], startedAt: current.startedAt || Date.now() })
+    setRecord((current) => current.secrets.includes(id) ? current : { ...current, secrets: [...current.secrets, id], startedAt: current.startedAt || Date.now(), times: { ...current.times, [`s-${id}`]: Date.now() } })
     setLastMark({ kind: 'secret', id, at: Date.now(), count: record.actions.length })
   }
   const setName = (name) => setRecord((current) => ({ ...current, name: name.slice(0, 28) }))
@@ -651,8 +498,21 @@ function SiteHeader({ path, navigate, record }) {
           <button key={route.path} className={path === route.path ? 'is-current' : ''} onClick={() => navigate(route.path)}>{route.short}</button>
         ))}
       </nav>
-      <MemberPassport record={record} navigate={navigate} current={path === '/record'} />
+      <div className="nq-header-tools">
+        <SoundToggle />
+        <MemberPassport record={record} navigate={navigate} current={path === '/record'} />
+      </div>
     </header>
+  )
+}
+
+function SoundToggle() {
+  const [on, setOn] = useState(soundEnabled())
+  useEffect(() => onSoundChange(setOn), [])
+  return (
+    <button type="button" className={`nq-sound ${on ? 'is-on' : ''}`} onClick={() => setSoundEnabled(!on)} aria-pressed={on} aria-label={on ? 'Turn library sounds off' : 'Turn library sounds on'} title={on ? 'Sound on' : 'Sound off'}>
+      {on ? <Volume2 size={15} /> : <VolumeX size={15} />}
+    </button>
   )
 }
 
@@ -718,6 +578,23 @@ function RoomShell({ path, navigate, record, children, tone = 'paper' }) {
   )
 }
 
+function LobbyFan({ record, resolved }) {
+  const fan = SPECIMENS.filter((sp) => !resolved || sp.family !== getOutcome(record.actions))
+  return (
+    <div className={`nq-fan ${resolved ? 'is-resolved' : ''}`}>
+      <div className="nq-fan-back" aria-hidden="true">
+        {fan.map((sp, i) => (
+          <div key={sp.family} className="nq-fan-card" style={{ '--i': i, '--n': fan.length }}>
+            <CardFront family={sp.family} actions={sp.actions} secrets={sp.secrets} owner={specimenOwner(sp)} detail={0.5} stamp />
+          </div>
+        ))}
+      </div>
+      <div className="nq-fan-front"><RecordCard record={record} stamp={resolved} /></div>
+      <p className="nq-fan-caption">{resolved ? 'Yours, in front. The others are what other visits became.' : 'Four families. Which one you carry depends on what you do inside.'}</p>
+    </div>
+  )
+}
+
 function Lobby({ path, navigate, record }) {
   const family = getOutcome(record.actions)
   const started = record.actions.length > 0
@@ -743,9 +620,7 @@ function Lobby({ path, navigate, record }) {
           </button>
         </div>
         <div className="lobby-object">
-          <div className="lobby-vitrine">
-            <MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} owner={ownerFromRecord(record)} stamp={resolved} />
-          </div>
+          <LobbyFan record={record} resolved={resolved} />
           <div className="lobby-plaque"><strong>MEMBERSHIP IS A RECORD OF PARTICIPATION.</strong><span>NQ / ACCESSION DESK</span></div>
         </div>
       </section>
@@ -761,126 +636,52 @@ function Lobby({ path, navigate, record }) {
 }
 
 function StacksRoom({ path, navigate, record, addAction, addSecret }) {
-  const books = [
-    { id: 'stacks-fiction', spine: 'FICTION / 813', title: 'A room inside a room' },
-    { id: 'stacks-essay', spine: 'ESSAY / 028', title: 'The public life of reading' },
-    { id: 'stacks-poetry', spine: 'POETRY / 811', title: 'Margins for weather' },
-  ]
-  const found = record.secrets.includes('borrower')
   return (
     <RoomShell path={path} navigate={navigate} record={record} tone="paper">
       <section className="room-intro">
         <div><span className="room-kicker">01 / READ / THE STACKS</span><h1>Some books<br /><em>remember you.</em></h1></div>
-        <p>Open a volume. What you choose to spend time with leaves a margin in your Member Record.</p>
+        <p>Pull one of the labelled books from the shelf and leave a pencil mark in its margin. Look closely: not every book is on the catalogue.</p>
       </section>
-      <section className="stacks-scene">
-        <div className="shelf-wall">
-          {Array.from({ length: 13 }).map((_, i) => <span key={i} className={`shelf-book shelf-book-${(i % 5) + 1}`} />)}
-          <button className="borrower-trigger" aria-label="A slightly protruding old book" onClick={() => addSecret('borrower')}>1978</button>
-        </div>
-        <div className="reading-table">
-          {books.map((book) => {
-            const marked = record.actions.includes(book.id)
-            return (
-              <button key={book.id} className={`open-book ${marked ? 'is-marked' : ''}`} onClick={() => addAction(book.id)}>
-                <span className="book-spine">{book.spine}</span><strong>{book.title}</strong><p>Leave a margin mark</p><i>{marked ? 'REGISTERED' : 'OPEN'}</i>
-              </button>
-            )
-          })}
-        </div>
-        {found && <aside className="secret-reveal secret-reader"><span>HIDDEN TRACE / FOUND</span><strong>BORROWER CARD — 1978</strong><p>Three names. Twelve dates. One book returning through different hands.</p></aside>}
-      </section>
+      <StacksScene record={record} addAction={addAction} addSecret={addSecret} />
       <RoomNext label="Follow a mark into the workshop" onClick={() => navigate('/workshop')} />
     </RoomShell>
   )
 }
 
 function WorkshopRoom({ path, navigate, record, addAction, addSecret }) {
-  const [registration, setRegistration] = useState(record.actions.includes('workshop-align') ? 50 : 31)
-  const aligned = Math.abs(registration - 50) <= 4
-  const secretFound = record.secrets.includes('imperfection')
   return (
     <RoomShell path={path} navigate={navigate} record={record} tone="workshop">
       <section className="room-intro">
         <div><span className="room-kicker">02 / MAKE / THE WORKSHOP</span><h1>Make the mark<br /><em>hold.</em></h1></div>
-        <p>Registration is never abstract here. Move the plate until two impressions become one, then choose what the object is made from.</p>
+        <p>Slide the plate until the red and blue impressions become one, then pull the proof. Choose the paper and the ink it is made from.</p>
       </section>
-      <section className="press-bench">
-        <div className="registration-stage">
-          <span className="plate plate-a" style={{ transform: `translateX(${registration - 50}px)` }}>NQ</span>
-          <span className="plate plate-b">NQ</span>
-          <div className="registration-target" />
-          <label>REGISTRATION / {registration > 50 ? '+' : ''}{registration - 50}<input type="range" min="0" max="100" value={registration} onChange={(event) => setRegistration(Number(event.target.value))} /></label>
-          <button className="room-primary" disabled={!aligned} onClick={() => addAction('workshop-align')}>{record.actions.includes('workshop-align') ? 'Impression registered' : 'Lock the impression'}</button>
-          <button className="imperfection-trigger" aria-label="A tiny misregistration mark" onClick={() => addSecret('imperfection')}>+2</button>
-        </div>
-        <div className="material-drawer">
-          <button onClick={() => addAction('workshop-stock')} className={record.actions.includes('workshop-stock') ? 'is-marked' : ''}><i className="stock-swatch" /><strong>UNCOATED STOCK</strong><span>Choose material</span></button>
-          <button onClick={() => addAction('workshop-ink')} className={record.actions.includes('workshop-ink') ? 'is-marked' : ''}><i className="ink-swatch" /><strong>OVERPRINT INK</strong><span>Choose process</span></button>
-        </div>
-        {secretFound && <aside className="secret-reveal secret-maker"><span>HIDDEN TRACE / FOUND</span><strong>REGISTERED IMPERFECTION</strong><p>The error was kept because it proved a hand had aligned the press.</p></aside>}
-      </section>
+      <WorkshopScene record={record} addAction={addAction} addSecret={addSecret} />
       <RoomNext label="Follow the registration number" onClick={() => navigate('/index')} />
     </RoomShell>
   )
 }
 
 function IndexRoom({ path, navigate, record, addAction, addSecret }) {
-  const has021 = record.actions.includes('index-021')
-  const has114 = record.actions.includes('index-114')
-  const has403 = record.actions.includes('index-403')
-  const found = record.secrets.includes('curiosity')
-  const step = (id, enabled) => {
-    if (!enabled) return
-    addAction(id)
-  }
   return (
     <RoomShell path={path} navigate={navigate} record={record} tone="index">
       <section className="room-intro room-intro-light">
         <div><span className="room-kicker">03 / SEEK / THE INDEX</span><h1>A question is<br /><em>a route.</em></h1></div>
-        <p>One reference points to another. Follow the chain far enough and the catalogue stops behaving like a list.</p>
+        <p>Open drawer NQ.021. Every catalogue card points to the next one. Follow the chain far enough and the catalogue stops behaving like a list.</p>
       </section>
-      <section className="index-cabinet">
-        <div className="index-drawers">
-          {Array.from({ length: 15 }).map((_, i) => <span key={i}>{String(i + 11).padStart(3, '0')}</span>)}
-          <button className="zero-drawer" onClick={() => addSecret('curiosity')}>NQ.000</button>
-        </div>
-        <div className="reference-chain">
-          <button className={`reference-card ${has021 ? 'is-open' : ''}`} onClick={() => step('index-021', true)}><span>NQ.021</span><strong>PUBLIC ROOMS</strong><small>SEE ALSO → NQ.114</small></button>
-          <button disabled={!has021} className={`reference-card ${has114 ? 'is-open' : ''}`} onClick={() => step('index-114', has021)}><span>NQ.114</span><strong>SHARED MEMORY</strong><small>SEE ALSO → NQ.403</small></button>
-          <button disabled={!has114} className={`reference-card ${has403 ? 'is-open' : ''}`} onClick={() => step('index-403', has114)}><span>NQ.403</span><strong>BELONGING</strong><small>REFERENCE COMPLETE</small></button>
-        </div>
-        {found && <aside className="secret-reveal secret-seeker"><span>HIDDEN TRACE / FOUND</span><strong>FOUND THROUGH CURIOSITY</strong><p>NQ.000 is not indexed. It only appears to people who check what the system says is empty.</p></aside>}
-      </section>
+      <IndexScene record={record} addAction={addAction} addSecret={addSecret} />
       <RoomNext label="Turn references into places" onClick={() => navigate('/quarter')} />
     </RoomShell>
   )
 }
 
 function QuarterRoom({ path, navigate, record, addAction, addSecret }) {
-  const found = record.secrets.includes('before')
-  const points = [
-    ['quarter-market', 'MARKET HALL', '12 Mercer'],
-    ['quarter-school', 'NORTH SCHOOL', '44 Vale'],
-    ['quarter-river', 'RIVER WALK', 'East bank'],
-  ]
   return (
     <RoomShell path={path} navigate={navigate} record={record} tone="quarter">
       <section className="room-intro">
         <div><span className="room-kicker">04 / BELONG / THE QUARTER</span><h1>The library is<br /><em>larger than its walls.</em></h1></div>
-        <p>Choose places that make the institution feel local. Each address brings another piece of the quarter into your record.</p>
+        <p>Pin the places that make the library feel local. Each one draws a route from the reading room into the city, and into your record.</p>
       </section>
-      <section className="quarter-map">
-        <div className="map-grid" aria-label="North Quarter map">
-          <span className="street street-a" /><span className="street street-b" /><span className="street street-c" /><span className="street street-d" />
-          {points.map(([id, label, address], index) => (
-            <button key={id} className={`map-point map-point-${index + 1} ${record.actions.includes(id) ? 'is-marked' : ''}`} onClick={() => addAction(id)}><i /><strong>{label}</strong><small>{address}</small></button>
-          ))}
-          <button className="map-hidden" aria-label="An unlabeled point on the map" onClick={() => addSecret('before')}><i /></button>
-          <div className="library-pin"><Monogram /><span>YOU ARE HERE</span></div>
-        </div>
-        {found && <aside className="secret-reveal secret-local"><span>HIDDEN TRACE / FOUND</span><strong>THE ROOM BEFORE THE LIBRARY</strong><p>Before North Quarter opened here, this address was a reading room above a grocer. The building is gone. The habit stayed.</p></aside>}
-      </section>
+      <QuarterScene record={record} addAction={addAction} addSecret={addSecret} />
       <RoomNext label="Resolve your Member Record" onClick={() => navigate('/record')} />
     </RoomShell>
   )
@@ -942,19 +743,13 @@ function SignaturePad({ strokes, onChange }) {
   )
 }
 
+// Offscreen source SVGs for the PNG export and the print sheet.
 function ExportFrame({ family, record, frameRef }) {
+  const owner = ownerFromRecord(record)
   return (
-    <div className="nq-export-host" aria-hidden="true">
-      <div className="nq-export" ref={frameRef} style={{ '--family-accent': FAMILY[family].accent }}>
-        <div className="nq-export-top"><span>COMMON ROOM</span><span>NORTH QUARTER PUBLIC LIBRARY</span></div>
-        <div className="nq-export-card">
-          <MemberCard family={family} actions={record.actions} secrets={record.secrets} resolved owner={ownerFromRecord(record)} stamp />
-        </div>
-        <div className="nq-export-foot">
-          <strong>You do not receive a card. You accumulate one.</strong>
-          <span>{record.actions.length} MARKS · {record.secrets.length}/4 HIDDEN TRACES · {getAccessionNumber(record)}</span>
-        </div>
-      </div>
+    <div className="nq-export-host" aria-hidden="true" ref={frameRef}>
+      <div data-print="back" style={{ width: 856 }}><CardBack family={family} owner={owner} entries={backEntries({ actions: record.actions, secrets: record.secrets, times: record.times, labels: cardLabels(), accents: CARD_ACCENTS, fallback: record.issuedAt })} /></div>
+      <div data-print="front" style={{ width: 856 }}><CardFront family={family} actions={record.actions} secrets={record.secrets} owner={owner} stamp /></div>
     </div>
   )
 }
@@ -966,6 +761,8 @@ function RecordRoom({ path, navigate, record, reset, setName, setSignature, mark
   const familyCounts = Object.keys(FAMILY).map((key) => [key, record.actions.filter((id) => ACTIONS[id]?.family === key).length])
   const [landing, setLanding] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const use3D = useMemo(() => resolved && supports3D(), [resolved])
+  const [ceremony3D] = useState(() => !record.stampSeen)
   const exportRef = useRef(null)
 
   useEffect(() => {
@@ -973,21 +770,45 @@ function RecordRoom({ path, navigate, record, reset, setName, setSignature, mark
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     if (reduce) { markStampSeen(); return undefined }
     const start = window.setTimeout(() => setLanding(true), 650)
+    const thud = use3D ? null : window.setTimeout(() => play('stamp'), 1260)
     const done = window.setTimeout(() => { setLanding(false); markStampSeen() }, 2400)
-    return () => { window.clearTimeout(start); window.clearTimeout(done) }
+    return () => { window.clearTimeout(start); window.clearTimeout(done); if (thud) window.clearTimeout(thud) }
   }, [resolved, record.stampSeen])
 
   const showStamp = resolved && (record.stampSeen || landing)
 
+  const [shareState, setShareState] = useState(null)
+  const [printing, setPrinting] = useState(false)
+  const shareCard = async () => {
+    const url = `${window.location.origin}/card/${encodeCard(record)}`
+    if (navigator.share) {
+      try { await navigator.share({ title: 'My North Quarter library card', text: `${meta.title} · ${getAccessionNumber(record)}. You don’t receive a card here, you accumulate one.`, url }); return } catch (error) { if (error?.name === 'AbortError') return }
+    }
+    try { await navigator.clipboard.writeText(url); setShareState('Link copied. Anyone who opens it sees your card.') } catch { setShareState(url) }
+  }
+  const printPdf = async () => {
+    const front = exportRef.current?.querySelector('[data-print="front"] svg')
+    const back = exportRef.current?.querySelector('[data-print="back"] svg')
+    if (!front || !back || printing) return
+    setPrinting(true)
+    try {
+      const { printCard } = await import('./print.js')
+      await printCard({ front, back, number: getAccessionNumber(record), name: record.name })
+    } catch (error) {
+      console.error('Print failed', error)
+    } finally {
+      setPrinting(false)
+    }
+  }
+
   const download = async () => {
-    if (!exportRef.current || exporting) return
+    const front = exportRef.current?.querySelector('[data-print="front"] svg')
+    const back = exportRef.current?.querySelector('[data-print="back"] svg')
+    if (!front || !back || exporting) return
     setExporting(true)
     try {
-      const url = await toPng(exportRef.current, { pixelRatio: 2, cacheBust: true })
-      const link = document.createElement('a')
-      link.download = `common-room-${getAccessionNumber(record).replace(/\s+/g, '-').toLowerCase()}.png`
-      link.href = url
-      link.click()
+      const { exportCardImage } = await import('./exportImage.js')
+      await exportCardImage({ front, back, number: getAccessionNumber(record), footer: `${record.actions.length} MARKS · ${record.secrets.length}/4 HIDDEN TRACES · ${getAccessionNumber(record)}` })
     } catch (error) {
       console.error('Card export failed', error)
     } finally {
@@ -1020,13 +841,31 @@ function RecordRoom({ path, navigate, record, reset, setName, setSignature, mark
             {resolved
               ? <button className="room-primary room-primary-light" onClick={download} disabled={exporting}><Download size={16} /> {exporting ? 'Printing your card…' : 'Take your card home'}</button>
               : <button className="room-primary room-primary-light" onClick={() => navigate(nextRoom(record))}>Keep exploring <ArrowRight size={16} /></button>}
-            {resolved && <button className="room-secondary" onClick={() => document.getElementById('member-lens')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Use your Member Lens <ArrowRight size={14} /></button>}
+            {resolved && <button className="room-secondary" onClick={printPdf} disabled={printing}><Printer size={14} /> {printing ? 'Preparing the sheet…' : 'Print it (PDF)'}</button>}
+            {resolved && <button className="room-secondary" onClick={shareCard}><Share2 size={14} /> Share your card</button>}
+            {resolved && <button className="room-secondary" onClick={() => document.getElementById('member-lens')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Member Lens <ArrowRight size={14} /></button>}
             <button className="room-reset" onClick={reset}><RotateCcw size={14} /> Reset record</button>
           </div>
+          {shareState && <p className="nq-share-state" role="status">{shareState}</p>}
         </div>
         <div className="record-object">
           <div className="record-light" />
-          <StratifiedMemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved} unregistered={!resolved} owner={ownerFromRecord(record)} stamp={showStamp} stampLanding={landing} />
+          {use3D ? (
+            <Suspense fallback={<RecordCard record={record} stamp={showStamp} flippable={false} />}>
+              <Card3D
+                family={family}
+                record={record}
+                owner={ownerFromRecord(record)}
+                entries={backEntries({ actions: record.actions, secrets: record.secrets, times: record.times, labels: cardLabels(), accents: CARD_ACCENTS, fallback: record.issuedAt })}
+                ceremony={ceremony3D}
+                fallback={<RecordCard record={record} stamp={showStamp} flippable={false} tilt={false} />}
+              />
+            </Suspense>
+          ) : (
+            <StratifiedMemberCard family={family} actions={record.actions} secrets={record.secrets} resolved={resolved}>
+              <RecordCard record={record} stamp={showStamp} landing={landing} />
+            </StratifiedMemberCard>
+          )}
           <span className="hidden-emboss">YOU WERE HERE.</span>
           <div className="record-ledger">
             <span>{record.actions.length} REGISTERED MARKS</span>
@@ -1036,7 +875,7 @@ function RecordRoom({ path, navigate, record, reset, setName, setSignature, mark
           {record.secrets.length > 0 && <div className="secret-ledger">{record.secrets.map((id) => <span key={id}>{SECRETS[id].glyph} / {SECRETS[id].label}</span>)}</div>}
         </div>
       </section>
-      {resolved && <CardLensReveal family={family} actions={record.actions} secrets={record.secrets} navigate={navigate} />}
+      {resolved && <CardLensReveal family={family} actions={record.actions} secrets={record.secrets} navigate={navigate} owner={ownerFromRecord(record)} />}
       {resolved && <ExportFrame family={family} record={record} frameRef={exportRef} />}
     </RoomShell>
   )
@@ -1051,7 +890,9 @@ function buildWall() {
     const family = families[Math.floor(rand() * 4)]
     const pool = FAMILY_ACTION_ORDER[family]
     const count = 1 + Math.floor(rand() * 3)
-    const actions = [...pool].sort(() => rand() - 0.5).slice(0, count)
+    const others = Object.keys(ACTIONS).filter((id) => !pool.includes(id))
+    const actions = [...[...pool].sort(() => rand() - 0.5).slice(0, count + 1), ...others.sort(() => rand() - 0.5).slice(0, Math.floor(rand() * 3))]
+    const secrets = rand() > 0.6 ? [Object.keys(SECRETS)[Math.floor(rand() * 4)]] : []
     return {
       key: `wall-${index}`,
       family,
@@ -1059,29 +900,45 @@ function buildWall() {
       name,
       strokes: [],
       number: `NQ ${String(Math.floor(rand() * 1000)).padStart(3, '0')} ${String(Math.floor(rand() * 1000)).padStart(3, '0')}`,
-      hidden: rand() > 0.78,
+      secrets,
+      hidden: secrets.length > 0,
     }
   })
 }
 
-function WallTile({ entry, isYou }) {
+function WallTile({ entry, isYou, onOpen, index }) {
   return (
-    <article className={`nq-tile family-${entry.family} ${isYou ? 'is-you' : ''}`} style={{ '--family-accent': FAMILY[entry.family].accent }}>
+    <button type="button" className={`nq-tile2 ${isYou ? 'is-you' : ''}`} style={{ '--family-accent': FAMILY[entry.family].accent, '--d': `${Math.min(index, 20) * 35}ms` }} onClick={() => onOpen(entry)} aria-label={`${isYou ? 'Your card' : `${entry.name}'s card`}: ${FAMILY[entry.family].title}, ${entry.number}. Open`}>
       {isYou && <span className="nq-tile-you">YOUR RECORD</span>}
-      <header><span>{entry.number}</span>{entry.hidden && <b>HIDDEN TRACE</b>}</header>
-      <strong>{FAMILY[entry.family].title}</strong>
-      <div className="nq-tile-aperture"><FamilyEvidenceMark family={entry.family} actions={entry.actions} compact /></div>
-      <footer>
-        <SignatureMark strokes={entry.strokes} name={entry.name} placeholder="Unsigned" />
-        <small>BORROWER</small>
-      </footer>
-    </article>
+      <CardFront family={entry.family} actions={entry.actions} secrets={entry.secrets || []} owner={{ name: entry.name, number: entry.number, issued: entry.issued || '24 SEP 2026', signature: entry.strokes }} detail={0.45} stamp={isYou} />
+    </button>
+  )
+}
+
+function CardModal({ entry, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const owner = { name: entry.name, number: entry.number, issued: entry.issued || '24 SEP 2026', signature: entry.strokes }
+  const entries = backEntries({ actions: entry.actions, secrets: entry.secrets || [], times: entry.times || {}, labels: cardLabels(), accents: CARD_ACCENTS, fallback: entry.issuedAt || Date.now() })
+  return createPortal(
+    <div className="nq-modal" role="dialog" aria-modal="true" aria-label={`${entry.name || 'Member'} card`} onClick={onClose}>
+      <div className="nq-modal-card" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="nq-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        <CardObject front={<CardFront family={entry.family} actions={entry.actions} secrets={entry.secrets || []} owner={owner} stamp />} back={<CardBack family={entry.family} owner={owner} entries={entries} />} />
+        <p className="nq-modal-caption">{entry.name || 'Unsigned'} · {FAMILY[entry.family].title} · {entry.actions.length} marks{entry.secrets?.length ? ` · ${entry.secrets.length} hidden` : ''}</p>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
 function CollectionRoom({ path, navigate, record }) {
   const [filter, setFilter] = useState('all')
   const [view, setView] = useState('wall')
+  const [openEntry, setOpenEntry] = useState(null)
   const families = Object.keys(FAMILY)
   const currentFamily = getOutcome(record.actions)
   const resolved = record.actions.length >= RESOLVE_AT
@@ -1093,6 +950,10 @@ function CollectionRoom({ path, navigate, record }) {
     name: record.name,
     strokes: record.signature,
     number: getAccessionNumber(record),
+    secrets: record.secrets,
+    times: record.times,
+    issuedAt: record.issuedAt,
+    issued: formatIssueDate(record.issuedAt),
     hidden: record.secrets.length > 0,
   } : null
   const all = you ? [...base.slice(0, 12), you, ...base.slice(12, 27)] : base
@@ -1120,14 +981,102 @@ function CollectionRoom({ path, navigate, record }) {
       {view === 'wall' ? (
         <section className="nq-wall">
           {!resolved && <p className="nq-wall-note">Your card isn’t on the wall yet. Leave {RESOLVE_AT - record.actions.length} more mark{RESOLVE_AT - record.actions.length > 1 ? 's' : ''} in the rooms and it will be accessioned here.</p>}
-          {wall.map((entry) => <WallTile key={entry.key} entry={entry} isYou={entry.key === 'you'} />)}
+          {wall.map((entry, index) => <WallTile key={entry.key} entry={entry} index={index} isYou={entry.key === 'you'} onOpen={setOpenEntry} />)}
         </section>
       ) : (
         <QuarterCollectionReveal currentFamily={currentFamily} name={record.name} />
       )}
 
+      {openEntry && <CardModal entry={openEntry} onClose={() => setOpenEntry(null)} />}
       <footer className="collection-room-footer"><div><Monogram /><span>NORTH QUARTER PUBLIC LIBRARY</span></div><strong>YOUR LIBRARY. YOUR WAY IN.</strong><button onClick={() => navigate('/')}>RETURN TO COMMON ROOM</button></footer>
     </RoomShell>
+  )
+}
+
+
+function RecordCard({ record, stamp = false, landing = false, flippable = true, tilt = true }) {
+  const resolved = record.actions.length >= RESOLVE_AT
+  const family = getOutcome(record.actions)
+  const owner = ownerFromRecord(record)
+  const front = <CardFront family={family} open={!resolved} actions={record.actions} secrets={record.secrets} owner={owner} stamp={stamp && resolved} />
+  const back = <CardBack family={family} open={!resolved} owner={owner} entries={backEntries({ actions: record.actions, secrets: record.secrets, times: record.times, labels: cardLabels(), accents: CARD_ACCENTS, fallback: record.issuedAt || record.startedAt })} />
+  return <CardObject front={front} back={back} flippable={flippable} tilt={tilt} landing={landing} />
+}
+
+const SPECIMENS = [
+  { family: 'reader', actions: ['stacks-fiction', 'stacks-poetry', 'index-021', 'stacks-essay'], secrets: ['borrower'], name: 'Amina Okafor', number: 'NQ 028 417' },
+  { family: 'maker', actions: ['workshop-align', 'workshop-ink', 'quarter-market', 'workshop-stock'], secrets: ['imperfection', 'before'], name: 'Luc Tremblay', number: 'NQ 347 190' },
+  { family: 'seeker', actions: ['index-021', 'index-114', 'stacks-essay', 'index-403', 'workshop-stock'], secrets: ['curiosity'], name: 'Mei Nguyen', number: 'NQ 618 320' },
+  { family: 'local', actions: ['quarter-market', 'quarter-river', 'stacks-fiction'], secrets: ['before', 'borrower'], name: 'Faadil Boussari', number: 'NQ 271 904' },
+]
+
+function specimenOwner(s) { return { name: s.name, number: s.number, issued: '24 SEP 2026', signature: [] } }
+
+function cardLabels() {
+  return {
+    actions: Object.fromEntries(Object.entries(ACTIONS).map(([k, v]) => [k, v.label])),
+    secrets: Object.fromEntries(Object.entries(SECRETS).map(([k, v]) => [k, v.label])),
+  }
+}
+const CARD_ACCENTS = { reader: '#7a2e2a', maker: '#c8372a', seeker: '#1c4077', local: '#2b5540' }
+
+function SpecimenBoard() {
+  const labels = cardLabels()
+  return (
+    <main className="lc-board">
+      <h1>North Quarter cards</h1>
+      <p>Four materials, one cut. The rosette in the window is drawn from each visitor’s own marks: no two cards are the same.</p>
+      <ul className="lc-refs">
+        <li><b>Edge-notched cards</b> McBee Keysort, 1930s–70s: each mark opens a notch; the accession number is notched in binary along the bottom.</li>
+        <li><b>Security guilloche</b> banknotes and passports: the rosette is generated from the visitor’s own marks.</li>
+        <li><b>Book cloth, marbled endpapers, ex libris</b> READER.</li>
+        <li><b>Letterpress proofs</b> two inks, registration marks, colour bars: MAKER.</li>
+        <li><b>Catalogue cards and cyanotypes</b> typewriter, ruled lines: SEEKER.</li>
+        <li><b>Transit passes and civic maps</b> LOCAL.</li>
+        <li><b>Tipped-in ephemera</b> hidden traces arrive as a 1978 borrower’s card, a kept misprint, an NQ.000 slip, a 1963 postmark.</li>
+      </ul>
+      <div className="lc-board-grid">
+        {SPECIMENS.map((s) => (
+          <figure key={s.family}>
+            <div className="lc-board-pair">
+              <CardObject front={<CardFront family={s.family} actions={s.actions} secrets={s.secrets} owner={specimenOwner(s)} stamp />} back={<CardBack family={s.family} owner={specimenOwner(s)} entries={backEntries({ actions: s.actions, secrets: s.secrets, labels, accents: CARD_ACCENTS, fallback: Date.now() })} />} />
+            </div>
+            <figcaption>{s.family.toUpperCase()} · {s.actions.length} MARKS · {s.secrets.length} HIDDEN</figcaption>
+          </figure>
+        ))}
+        <figure>
+          <CardObject front={<CardFront open actions={[]} secrets={[]} owner={{ number: 'NQ / OPEN', issued: '—' }} />} back={<CardBack open owner={{ number: 'NQ / OPEN' }} entries={[]} />} />
+          <figcaption>BEFORE ACCESSION · TEMPORARY CARD</figcaption>
+        </figure>
+      </div>
+    </main>
+  )
+}
+
+function SharedCardPage({ code, navigate }) {
+  const shared = useMemo(() => decodeCard(code), [code])
+  const ok = shared && shared.actions.length >= RESOLVE_AT
+  const family = ok ? getOutcome(shared.actions) : 'reader'
+  const owner = ok ? ownerFromRecord(shared) : null
+  return (
+    <main className="room-page room-tone-dark nq-shared">
+      <header className="room-header">
+        <button className="room-brand" onClick={() => navigate('/')}><Monogram /><span>NORTH QUARTER<br />PUBLIC LIBRARY</span></button>
+      </header>
+      {ok ? (
+        <section className="nq-shared-grid">
+          <div className="nq-shared-copy">
+            <span className="room-kicker">A NORTH QUARTER MEMBER RECORD · {owner.number}</span>
+            <h1>{shared.name ? <>{shared.name.split(' ')[0]}’s<br /><em>library card.</em></> : <>A member’s<br /><em>library card.</em></>}</h1>
+            <p>Accessioned {owner.issued} as <strong>{FAMILY[family].title}</strong>. {shared.actions.length} marks, {shared.secrets.length} hidden trace{shared.secrets.length === 1 ? '' : 's'}. Every notch, stamp and line on it is something they actually did in the library.</p>
+            <button className="room-primary room-primary-light" onClick={() => navigate('/')}>Accumulate your own <ArrowRight size={16} /></button>
+          </div>
+          <div className="nq-shared-card"><RecordCard record={shared} stamp /></div>
+        </section>
+      ) : (
+        <section className="nq-shared-grid"><div className="nq-shared-copy"><span className="room-kicker">NQ / UNCATALOGUED</span><h1>This card could<br /><em>not be read.</em></h1><button className="room-primary room-primary-light" onClick={() => navigate('/')}>Enter the library <ArrowRight size={16} /></button></div></section>
+      )}
+    </main>
   )
 }
 
@@ -1139,10 +1088,47 @@ function NotFound({ navigate }) {
   return <main className="not-found"><Monogram /><span>NQ / UNCATALOGUED</span><h1>This room is not in the index.</h1><button onClick={() => navigate('/')}>Return to Common Room</button></main>
 }
 
+// Each registered mark flies from where you touched to the passport in the header.
+const lastPointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+window.addEventListener('pointerdown', (e) => { lastPointer.x = e.clientX; lastPointer.y = e.clientY }, true)
+
+function useMarkFlight(lastMark) {
+  useEffect(() => {
+    if (!lastMark) return
+    const target = document.querySelector('.nq-passport')
+    if (!target) return
+    const entry = lastMark.kind === 'secret' ? SECRETS[lastMark.id] : ACTIONS[lastMark.id]
+    const rect = target.getBoundingClientRect()
+    const tx = rect.left + 18
+    const ty = rect.top + rect.height / 2
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const bump = () => { target.classList.remove('is-bumped'); void target.offsetWidth; target.classList.add('is-bumped') }
+    if (reduce || !entry) { bump(); return }
+    const chip = document.createElement('span')
+    chip.className = 'nq-flyer'
+    chip.textContent = entry.glyph.length > 2 ? '✦' : entry.glyph
+    chip.style.setProperty('--c', lastMark.kind === 'secret' ? '#9a7a2e' : FAMILY[entry.family].accent)
+    document.body.appendChild(chip)
+    const sx = lastPointer.x
+    const sy = lastPointer.y
+    const mx = (sx + tx) / 2
+    const my = Math.min(sy, ty) - 120
+    const anim = chip.animate([
+      { transform: `translate(${sx}px, ${sy}px) scale(.4)`, opacity: 0 },
+      { transform: `translate(${sx}px, ${sy - 30}px) scale(1.25)`, opacity: 1, offset: 0.18 },
+      { transform: `translate(${mx}px, ${my}px) scale(1)`, opacity: 1, offset: 0.6 },
+      { transform: `translate(${tx}px, ${ty}px) scale(.5)`, opacity: .2 },
+    ], { duration: 900, easing: 'cubic-bezier(.45,0,.25,1)' })
+    anim.onfinish = () => { chip.remove(); bump(); play('mark') }
+    return () => { chip.remove() }
+  }, [lastMark])
+}
+
 function App() {
   const [path, setPath] = usePath()
   const { record, lastMark, addAction, addSecret, setName, setSignature, markStampSeen, reset } = useMemberRecord()
   const [transition, setTransition] = useState(null)
+  useMarkFlight(lastMark)
 
   const navigate = (next) => {
     if (next === path) return
@@ -1169,6 +1155,8 @@ function App() {
   else if (path === '/quarter') page = <QuarterRoom {...props} />
   else if (path === '/record') page = <RecordRoom {...props} />
   else if (path === '/collection') page = <CollectionRoom {...props} />
+  else if (path === '/cards') page = <SpecimenBoard />
+  else if (path.startsWith('/card/')) page = <SharedCardPage code={path.slice(6)} navigate={navigate} />
   else page = <NotFound navigate={navigate} />
 
   return (

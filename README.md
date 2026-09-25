@@ -223,9 +223,11 @@ Everything else — family resolution, card evidence, patina, strata, Lens conte
 - CSS
 - Lucide React
 - localStorage
+- three.js (Member Record only, lazy-loaded)
+- jsPDF (print sheet, lazy-loaded)
 - Cloudflare Pages-compatible SPA routing
 
-No backend, authentication layer, wallet system, WebGL dependency, or procedural-generation service is required for the prototype.
+No backend, authentication layer or wallet system is required. WebGL is optional: the Member Record falls back to the SVG card.
 
 ---
 
@@ -270,6 +272,23 @@ Current canonical implementation includes:
 - reduced-motion handling
 
 The remaining work is runtime QA and final publication capture rather than product-scope expansion.
+
+---
+
+## Member Record v3 — the card as an archive object
+
+The Member Record is now drawn as one SVG object (`src/cardArt.jsx`) and reused everywhere: lobby, record, wall, lens, 3D, PNG and print.
+
+- **Four materials** — READER (book cloth, gilt, marbled window, ex libris), MAKER (kraft, two-ink letterpress, colour bar), SEEKER (cyanotype catalogue card, typewriter), LOCAL (transit green, civic map, line diagram of your places).
+- **Generative accession rosette** — a guilloche computed from the visitor's own marks; hidden traces add gilt stars.
+- **Edge-notched card (McBee Keysort)** — each mark opens a notch; the accession number is notched in binary on the bottom edge.
+- **Tipped-in ephemera** — each hidden trace arrives as a 1978 borrower's card, a kept misprint, an NQ.000 slip or a 1963 postmark.
+- **Back of the card** — barcode and a date-registered slip, one stamp per mark.
+- **3D accession** (`src/card3d.jsx`, three.js, lazy-loaded on `/record` only) — die-cut plate with real thickness, foil that catches light, strata as sheets, the stamp pressed into the card. SVG fallback without WebGL or with reduced motion (`?flat` forces it).
+- **Rooms as objects** (`src/rooms.jsx`) — a bookshelf and an open book for margin marks, a letterpress with registration, a card catalogue, an engraved civic map. Each mark flies into the header passport.
+- **Take it with you** — PNG export, a print-at-home PDF at CR80 size (fold-and-glue), and a share link `/card/<code>` that encodes the visit in the URL (no server).
+- **Sound** — synthesised paper, drawer, press and stamp sounds, off by default.
+- **Specimen board** at `/cards`.
 
 ---
 
