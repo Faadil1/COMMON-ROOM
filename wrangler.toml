@@ -3,14 +3,11 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2026-09-10"
 
 # The Living Collection (shared wall) uses a Cloudflare D1 database bound as DB.
-# One-time setup — see README “Living Collection setup”:
-#   npx wrangler d1 create common-room-wall
-#   paste the database_id below and uncomment the block
-#   npx wrangler d1 migrations apply common-room-wall --remote
-# Without this block the site works normally and the wall shows specimen cards.
-#
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "common-room-wall"
-# database_id = "PASTE-YOUR-DATABASE-ID"
-# migrations_dir = "migrations"
+# Database: common-room-wall
+# Migration: migrations/0001_living_wall.sql
+
+[[d1_databases]]
+binding = "DB"
+database_name = "common-room-wall"
+database_id = "fa53e4b3-b151-4cdf-8bcb-bc8ab8eafe66"
+migrations_dir = "migrations"
