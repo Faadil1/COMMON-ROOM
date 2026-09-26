@@ -14,12 +14,13 @@ const required=[
   'public/video-captures/card-seeker-back.png',
   'public/video-captures/04-living-collection.png',
   'public/video-captures/05-quarter.png',
-  'public/video-audio/narration.wav',
-  'public/video-audio/paper.wav',
-  'public/video-audio/tick.wav',
-  'public/video-audio/thud.wav',
-  'public/video-audio/scan.wav',
-  'public/video-audio/swell.wav',
+  'public/video-audio/narration.mp3',
+  'public/video-audio/sfx-paper.mp3',
+  'public/video-audio/sfx-tick.mp3',
+  'public/video-audio/sfx-thud.mp3',
+  'public/video-audio/sfx-scan.mp3',
+  'public/video-audio/score.mp3',
+  'public/video-audio/sfx-stamp.mp3',
 ]
 
 const missing=required.filter((rel)=>!fs.existsSync(path.join(root,rel)))
