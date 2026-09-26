@@ -66,6 +66,22 @@ await capture('/quarter', 'room-quarter.png', '.rm-quarter')
 await capture('/record', '01-member-record.png', '.record-object')
 await capture('/record', '02-member-lens.png', '#member-lens')
 await capture('/cards', '03-card-object.png', '.lc-board-grid')
+
+// Isolate one real SEEKER card as a hero object, then flip the same DOM object for its back.
+await page.goto(filmUrl('/cards'), { waitUntil: 'domcontentloaded' })
+await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {})
+await page.waitForTimeout(1200)
+const seekerFigure = page.locator('.lc-board-grid figure').nth(2)
+const seekerCard = seekerFigure.locator('.lc-object').first()
+await seekerCard.waitFor({ state: 'visible', timeout: 15000 })
+await seekerCard.screenshot({ path: outputPath('card-seeker-front.png') })
+const flip = seekerFigure.locator('.lc-flip').first()
+if (await flip.count()) {
+  await flip.click()
+  await page.waitForTimeout(850)
+  await seekerCard.screenshot({ path: outputPath('card-seeker-back.png') })
+}
+
 await capture('/collection', '04-living-collection.png', '.nq-wall')
 
 await page.goto(filmUrl('/collection'), { waitUntil: 'domcontentloaded' })
