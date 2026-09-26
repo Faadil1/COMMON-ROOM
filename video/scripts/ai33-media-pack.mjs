@@ -27,7 +27,12 @@ async function request(url,options={}){
   const text=await res.text()
   let data=null
   try{data=text?JSON.parse(text):null}catch{}
-  if(!res.ok) throw new Error((data&&((data.error_message)||(data.message)||(data.error)))||('HTTP '+res.status+' '+url))
+  if(!res.ok) {
+    const primary=data&&((data.error_message)||(data.message)||(data.error))
+    const details=data?.details||data?.errors||data?.validation_errors||data?.data
+    const suffix=details ? ' | '+JSON.stringify(details) : ''
+    throw new Error((primary||('HTTP '+res.status+' '+url))+suffix)
+  }
   return data
 }
 async function poll(taskId){
