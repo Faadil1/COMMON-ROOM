@@ -1,5 +1,16 @@
 import React from 'react'
-import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, registerRoot, Composition } from 'remotion'
+import {
+  AbsoluteFill,
+  Composition,
+  Img,
+  Sequence,
+  interpolate,
+  spring,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+  registerRoot,
+} from 'remotion'
 import '@fontsource-variable/newsreader/opsz.css'
 import '@fontsource/public-sans/400.css'
 import '@fontsource/public-sans/700.css'
@@ -13,67 +24,206 @@ const C = {
   seeker: '#26374B',
   local: '#3F614D',
 }
-
 const Serif = "'Newsreader Variable', Georgia, serif"
 const Sans = "'Public Sans', Arial, sans-serif"
+const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+const aperture = 'polygon(0 19%, 9% 0, 100% 0, 100% 75%, 72% 100%, 0 100%)'
 
-function Scene({ children, duration }) {
-  const frame = useCurrentFrame()
-  const opacity = interpolate(frame, [0, 10, duration - 10, duration], [0, 1, 1, 0], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  })
-  return <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>
+const ease=(f,a,b,c,d)=>interpolate(f,[a,b],[c,d],clamp)
+
+function Fade({children,duration,style={}}){
+  const f=useCurrentFrame()
+  const opacity=interpolate(f,[0,10,duration-10,duration],[0,1,1,0],clamp)
+  return <AbsoluteFill style={{...style,opacity}}>{children}</AbsoluteFill>
+}
+function Brand({dark=false,label='COMMON ROOM'}){
+  return <div style={{position:'absolute',left:58,right:58,top:42,display:'flex',justifyContent:'space-between',alignItems:'center',color:dark?C.ink:C.paper,zIndex:50}}>
+    <div style={{fontFamily:Sans,fontSize:11,fontWeight:700,letterSpacing:'0.18em'}}>NORTH QUARTER PUBLIC LIBRARY</div>
+    <div style={{fontFamily:Sans,fontSize:11,fontWeight:700,letterSpacing:'0.18em',opacity:.55}}>DAY 17 / {label}</div>
+  </div>
+}
+function Caption({children,dark=false}){
+  return <div style={{fontFamily:Sans,fontSize:12,fontWeight:700,letterSpacing:'0.2em',color:dark?C.ink:C.paper}}>{children}</div>
+}
+function PaperNoise(){return <AbsoluteFill style={{pointerEvents:'none',opacity:.045,backgroundImage:'repeating-radial-gradient(circle at 20% 20%,#000 0 1px,transparent 1px 3px)',backgroundSize:'8px 8px',mixBlendMode:'multiply'}}/>}
+
+function Opening({duration}){
+  const f=useCurrentFrame(); const {fps}=useVideoConfig()
+  const title=spring({frame:f-9,fps,config:{damping:18,stiffness:85}})
+  const cut=spring({frame:f-28,fps,config:{damping:16,stiffness:70}})
+  const strip=ease(f,86,130,1,0)
+  return <Fade duration={duration} style={{background:C.paper,color:C.ink}}>
+    <Brand dark label="BELONGING ARTIFACT"/>
+    <div style={{position:'absolute',left:94,top:180,width:1180,opacity:title,transform:'translateY('+((1-title)*38)+'px)'}}>
+      <Caption dark>MOST LIBRARY CARDS PROVE ACCESS.</Caption>
+      <div style={{fontFamily:Serif,fontSize:142,lineHeight:.85,letterSpacing:'-0.05em',marginTop:30}}>What if one<br/><em style={{fontWeight:300}}>proved belonging?</em></div>
+    </div>
+    <div style={{position:'absolute',right:120,top:220,width:520,height:330,background:C.paper2,border:'1px solid rgba(28,27,24,.18)',borderRadius:16,transform:'rotate(-4deg) scale('+(.92+.08*title)+')'}}>
+      <div style={{position:'absolute',left:32,top:34,width:190,height:14,background:C.ink,opacity:.75*strip}}/>
+      <div style={{position:'absolute',left:32,top:70,width:290,height:8,background:C.ink,opacity:.22*strip}}/>
+      <div style={{position:'absolute',left:32,top:92,width:220,height:8,background:C.ink,opacity:.13*strip}}/>
+      <div style={{position:'absolute',right:22,top:24,width:190,height:275,background:C.ink,clipPath:aperture,transform:'scaleY('+(.12+.88*cut)+')',transformOrigin:'50% 50%'}}/>
+    </div>
+    <div style={{position:'absolute',left:94,bottom:80,display:'flex',gap:10}}>
+      {[C.reader,C.maker,C.seeker,C.local].map(x=><i key={x} style={{display:'block',width:74,height:7,background:x}}/> )}
+    </div>
+    <PaperNoise/>
+  </Fade>
 }
 
-function Opening() {
-  return (
-    <AbsoluteFill style={{ background: C.paper, color: C.ink, padding: 88 }}>
-      <div style={{ fontFamily: Sans, fontSize: 16, letterSpacing: '0.22em', fontWeight: 700 }}>
-        NORTH QUARTER PUBLIC LIBRARY / DAY 17
+const rooms=[
+  ['room-stacks.png','STACKS','READ',C.reader,'MARGIN'],
+  ['room-workshop.png','WORKSHOP','MAKE',C.maker,'REGISTER'],
+  ['room-index.png','INDEX','SEEK',C.seeker,'REFERENCE'],
+  ['room-quarter.png','QUARTER','BELONG',C.local,'STREET'],
+]
+function Rooms({duration}){
+  const f=useCurrentFrame(); const {fps}=useVideoConfig()
+  return <Fade duration={duration} style={{background:C.ink,color:C.paper}}>
+    <Brand label="ROOMS LEAVE EVIDENCE"/>
+    <div style={{position:'absolute',left:64,right:64,top:126,bottom:110,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:18}}>
+      {rooms.map((r,i)=>{
+        const p=spring({frame:f-(8+i*10),fps,config:{damping:18,stiffness:100}})
+        const y=(1-p)*72
+        return <div key={r[1]} style={{position:'relative',overflow:'hidden',background:'#2a2925',border:'1px solid rgba(247,243,234,.12)',transform:'translateY('+y+'px)',opacity:p}}>
+          <Img src={staticFile('video-captures/'+r[0])} style={{width:'100%',height:'100%',objectFit:'cover',filter:'saturate(.82) contrast(1.02)',transform:'scale(1.08)'}}/>
+          <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,transparent 40%,rgba(20,19,16,.86))'}}/>
+          <div style={{position:'absolute',left:22,right:22,bottom:22}}>
+            <div style={{height:4,width:48,background:r[3],marginBottom:16}}/>
+            <div style={{fontFamily:Serif,fontSize:34,lineHeight:.95}}>{r[1]}</div>
+            <div style={{fontFamily:Sans,fontSize:10,letterSpacing:'0.16em',marginTop:8,opacity:.7}}>{r[2]} → {r[4]}</div>
+          </div>
+        </div>
+      })}
+    </div>
+    <div style={{position:'absolute',left:64,right:64,bottom:54,height:1,background:'rgba(247,243,234,.22)'}}>
+      <div style={{height:2,width:(ease(f,30,120,0,100))+'%',background:C.paper}}/>
+    </div>
+  </Fade>
+}
+
+function Strata({duration}){
+  const f=useCurrentFrame(); const {fps}=useVideoConfig()
+  const enter=spring({frame:f-8,fps,config:{damping:17,stiffness:90}})
+  const spread=spring({frame:f-36,fps,config:{damping:14,stiffness:64}})
+  const settle=ease(f,165,250,1,0)
+  const offsets=[72,54,36,18]
+  return <Fade duration={duration} style={{background:C.ink,color:C.paper}}>
+    <Brand label="ACCESSION STRATA"/>
+    <div style={{position:'absolute',left:80,top:175,width:650,opacity:enter}}>
+      <Caption>THE CARD REMEMBERS IN LAYERS</Caption>
+      <div style={{fontFamily:Serif,fontSize:92,lineHeight:.91,letterSpacing:'-0.04em',marginTop:22}}>The card is built<br/>from what happened.</div>
+      <div style={{fontFamily:Serif,fontSize:28,lineHeight:1.24,opacity:.72,marginTop:30}}>Margin. Registration. Reference. Street. Real behavior becomes a physical object.</div>
+    </div>
+    <div style={{position:'absolute',right:100,top:190,width:920,height:590,perspective:1400,opacity:enter}}>
+      {offsets.map((o,i)=>{
+        const k=spread*(o*(.65+.35*settle))
+        return <div key={o} style={{position:'absolute',inset:0,transform:'translate('+k+'px,'+k+'px) rotate('+(i*.25*spread)+'deg)',borderRadius:24,background:'linear-gradient(120deg,rgba(247,243,234,.16),rgba(247,243,234,.03))',border:'1px solid rgba(247,243,234,.24)',clipPath:aperture,opacity:.22+i*.09}}/>
+      })}
+      <div style={{position:'absolute',inset:0,overflow:'hidden',borderRadius:24,clipPath:aperture,border:'1px solid rgba(247,243,234,.34)',background:C.paper2}}>
+        <Img src={staticFile('video-captures/01-member-record.png')} style={{width:'100%',height:'100%',objectFit:'cover',transform:'scale(1.06)'}}/>
       </div>
-      <div style={{ marginTop: 130, fontFamily: Serif, fontSize: 150, lineHeight: 0.84, letterSpacing: '-0.05em' }}>
-        COMMON<br/><em style={{ fontWeight: 300 }}>ROOM</em>
+    </div>
+    <div style={{position:'absolute',right:100,bottom:64,fontFamily:Sans,fontSize:10,letterSpacing:'0.18em',opacity:.58}}>MARK → LAYER → ACCUMULATE → APERTURE</div>
+  </Fade>
+}
+
+function ObjectShot({duration}){
+  const f=useCurrentFrame(); const spin=ease(f,0,duration,-7,5); const zoom=ease(f,20,duration-20,1.08,1.0)
+  return <Fade duration={duration} style={{background:C.paper,color:C.ink}}>
+    <Brand dark label="CARD AS OBJECT"/>
+    <div style={{position:'absolute',left:84,top:190,width:560}}>
+      <Caption dark>THE CARD LEAVES THE SCREEN</Caption>
+      <div style={{fontFamily:Serif,fontSize:78,lineHeight:.94,marginTop:20}}>QR. Share code.<br/>Renewal marks.<br/>Wear over time.</div>
+    </div>
+    <div style={{position:'absolute',right:90,top:160,width:1040,height:690,perspective:1500}}>
+      <div style={{width:'100%',height:'100%',transform:'rotateY('+spin+'deg) rotateX(2deg) scale('+zoom+')',transformStyle:'preserve-3d',boxShadow:'0 34px 70px rgba(28,27,24,.16)',overflow:'hidden',borderRadius:18}}>
+        <Img src={staticFile('video-captures/03-card-object.png')} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
       </div>
-      <div style={{ marginTop: 56, fontFamily: Serif, fontSize: 42, lineHeight: 1.12 }}>
-        A library card shouldn't just unlock access.<br/>It should reveal belonging.
-      </div>
-      <div style={{
-        position: 'absolute', right: 110, top: 170, width: 500, height: 700, background: C.ink,
-        clipPath: 'polygon(0 22%,9% 0,100% 0,100% 76%,73% 100%,0 100%)',
-      }}/>
-      <div style={{ position: 'absolute', left: 88, bottom: 86, display: 'flex', gap: 12 }}>
-        {[C.reader, C.maker, C.seeker, C.local].map((color) => (
-          <div key={color} style={{ width: 76, height: 7, background: color }}/>
-        ))}
+    </div>
+    <PaperNoise/>
+  </Fade>
+}
+
+function Lens({duration}){
+  const f=useCurrentFrame(); const move=ease(f,40,duration-35,0,1)
+  return <Fade duration={duration} style={{background:C.paper2,color:C.ink}}>
+    <Brand dark label="MEMBER LENS"/>
+    <div style={{position:'absolute',left:78,top:170,width:590}}>
+      <Caption dark>THE OBJECT BECOMES AN INSTRUMENT</Caption>
+      <div style={{fontFamily:Serif,fontSize:85,lineHeight:.92,letterSpacing:'-0.035em',marginTop:22}}>The aperture<br/>becomes a lens.</div>
+      <div style={{fontFamily:Serif,fontSize:28,lineHeight:1.24,marginTop:28}}>The same cut that carries evidence reveals the archive underneath.</div>
+    </div>
+    <div style={{position:'absolute',right:70,top:125,width:1080,height:760,overflow:'hidden',background:C.ink,clipPath:aperture,transform:'translate('+(move*-60)+'px,'+(move*18)+'px)'}}>
+      <Img src={staticFile('video-captures/02-member-lens.png')} style={{width:'100%',height:'100%',objectFit:'cover',transform:'scale(1.04)'}}/>
+      <div style={{position:'absolute',inset:18,border:'2px solid rgba(123,51,47,.4)',clipPath:aperture}}/>
+    </div>
+  </Fade>
+}
+
+function Wall({duration}){
+  const f=useCurrentFrame(); const p=ease(f,20,80,0,1)
+  return <Fade duration={duration} style={{background:C.ink,color:C.paper}}>
+    <Brand label="THE LIVING COLLECTION"/>
+    <div style={{position:'absolute',left:78,top:150,width:670}}>
+      <Caption>FROM PRIVATE RECORD TO SHARED MEMORY</Caption>
+      <div style={{fontFamily:Serif,fontSize:82,lineHeight:.93,marginTop:20}}>One card becomes<br/>a collective wall.</div>
+      <div style={{fontFamily:Serif,fontSize:27,lineHeight:1.25,opacity:.72,marginTop:26}}>Not a feed. Not a leaderboard. A public accession surface.</div>
+    </div>
+    <div style={{position:'absolute',right:70,top:115,width:1080,height:800,overflow:'hidden',opacity:p,transform:'scale('+(.95+.05*p)+')'}}>
+      <Img src={staticFile('video-captures/04-living-collection.png')} style={{width:'100%',height:'100%',objectFit:'cover',filter:'contrast(1.03)'}}/>
+      <div style={{position:'absolute',inset:0,boxShadow:'inset 0 0 100px rgba(0,0,0,.32)'}}/>
+    </div>
+    <div style={{position:'absolute',left:78,bottom:72,display:'flex',gap:10}}>
+      {['PUBLISHED WITH CONSENT','REVERSIBLE','LIVE WALL'].map(x=><div key={x} style={{fontFamily:Sans,fontSize:10,letterSpacing:'0.15em',border:'1px solid rgba(247,243,234,.24)',padding:'10px 12px'}}>{x}</div>)}
+    </div>
+  </Fade>
+}
+
+function Quarter({duration}){
+  const f=useCurrentFrame(); const line=ease(f,18,duration-30,100,0); const text=ease(f,24,60,0,1)
+  return <Fade duration={duration} style={{background:C.ink,color:C.paper}}>
+    <Img src={staticFile('video-captures/05-quarter.png')} style={{width:'100%',height:'100%',objectFit:'cover',filter:'saturate(.8) contrast(1.08)'}}/>
+    <AbsoluteFill style={{background:'linear-gradient(90deg,rgba(20,19,16,.72),transparent 48%,rgba(20,19,16,.14))'}}/>
+    <Brand label="NORTH QUARTER"/>
+    <svg viewBox="0 0 1920 1080" style={{position:'absolute',inset:0,width:'100%',height:'100%'}}>
+      <path d="M-20 820 C320 700 520 650 760 680 S1210 770 1450 540 S1710 330 1950 390" fill="none" stroke={C.paper} strokeWidth="2" opacity=".48" pathLength="100" strokeDasharray="100" strokeDashoffset={line}/>
+      <path d="M180 100 C420 260 500 420 790 470 S1270 360 1510 580 S1690 850 1910 920" fill="none" stroke={C.paper} strokeWidth="2" opacity=".32" pathLength="100" strokeDasharray="100" strokeDashoffset={line+14}/>
+    </svg>
+    <div style={{position:'absolute',left:76,bottom:78,width:900,opacity:text,transform:'translateY('+((1-text)*30)+'px)'}}>
+      <Caption>ONE TRACE → MANY FORMS</Caption>
+      <div style={{fontFamily:Serif,fontSize:76,lineHeight:.94,marginTop:14}}>Individual traces<br/>become civic memory.</div>
+      <div style={{fontFamily:Sans,fontSize:11,letterSpacing:'0.18em',marginTop:20,opacity:.65}}>THE LIBRARY REMEMBERS.</div>
+    </div>
+  </Fade>
+}
+
+function Outro({duration}){
+  const f=useCurrentFrame(); const p=ease(f,8,45,0,1)
+  return <Fade duration={duration} style={{background:C.paper,color:C.ink}}>
+    <AbsoluteFill style={{display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center',opacity:p,transform:'translateY('+((1-p)*30)+'px)'}}>
+      <div>
+        <Caption dark>COMMON ROOM / DAY 17</Caption>
+        <div style={{fontFamily:Serif,fontSize:84,lineHeight:.92,letterSpacing:'-0.03em',marginTop:22}}>You don't receive a card.<br/><em style={{fontWeight:300}}>You accumulate one.</em></div>
+        <div style={{fontFamily:Sans,fontSize:11,letterSpacing:'0.2em',marginTop:42,opacity:.55}}>NORTH QUARTER PUBLIC LIBRARY · THE LIBRARY REMEMBERS</div>
       </div>
     </AbsoluteFill>
-  )
+    <PaperNoise/>
+  </Fade>
 }
 
-function DirectionCard({ number, title, subtitle }) {
-  return (
-    <AbsoluteFill style={{ background: C.ink, color: C.paper, padding: 90 }}>
-      <div style={{ fontFamily: Sans, fontSize: 15, letterSpacing: '0.2em', opacity: .58 }}>{number}</div>
-      <div style={{ marginTop: 180, maxWidth: 1400, fontFamily: Serif, fontSize: 104, lineHeight: .92, letterSpacing: '-0.04em' }}>{title}</div>
-      <div style={{ marginTop: 42, maxWidth: 900, fontFamily: Serif, fontSize: 34, lineHeight: 1.18, opacity: .72 }}>{subtitle}</div>
-    </AbsoluteFill>
-  )
+export function CommonRoomFilm(){
+  return <AbsoluteFill style={{background:C.ink}}>
+    <Sequence from={0} durationInFrames={150}><Opening duration={150}/></Sequence>
+    <Sequence from={150} durationInFrames={240}><Rooms duration={240}/></Sequence>
+    <Sequence from={390} durationInFrames={300}><Strata duration={300}/></Sequence>
+    <Sequence from={690} durationInFrames={240}><ObjectShot duration={240}/></Sequence>
+    <Sequence from={930} durationInFrames={240}><Lens duration={240}/></Sequence>
+    <Sequence from={1170} durationInFrames={270}><Wall duration={270}/></Sequence>
+    <Sequence from={1440} durationInFrames={210}><Quarter duration={210}/></Sequence>
+    <Sequence from={1650} durationInFrames={150}><Outro duration={150}/></Sequence>
+  </AbsoluteFill>
 }
 
-export function CommonRoomFilm() {
-  return (
-    <AbsoluteFill style={{ background: C.ink }}>
-      <Sequence from={0} durationInFrames={150}><Scene duration={150}><Opening/></Scene></Sequence>
-      <Sequence from={150} durationInFrames={240}><Scene duration={240}><DirectionCard number="01 / EVIDENCE" title="Four rooms. Four ways to leave a trace." subtitle="No personality quiz. Behavior inside the library becomes the evidence."/></Scene></Sequence>
-      <Sequence from={390} durationInFrames={300}><Scene duration={300}><DirectionCard number="02 / OBJECT" title="The card is built from what happened." subtitle="Margin, register, reference and street become ACCESSION STRATA."/></Scene></Sequence>
-      <Sequence from={690} durationInFrames={240}><Scene duration={240}><DirectionCard number="03 / APERTURE" title="The object becomes an instrument." subtitle="The same cut that carries evidence becomes the Member Lens."/></Scene></Sequence>
-      <Sequence from={930} durationInFrames={270}><Scene duration={270}><DirectionCard number="04 / COLLECTION" title="One record becomes a living wall." subtitle="Publishing is explicit, collective and reversible."/></Scene></Sequence>
-      <Sequence from={1200} durationInFrames={270}><Scene duration={270}><DirectionCard number="05 / QUARTER" title="Individual traces become civic memory." subtitle="ONE TRACE → MANY FORMS."/></Scene></Sequence>
-      <Sequence from={1470} durationInFrames={150}><Scene duration={150}><AbsoluteFill style={{background:C.paper,color:C.ink,display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center'}}><div><div style={{fontFamily:Serif,fontSize:82,lineHeight:.94}}>You don't receive a card.<br/><em style={{fontWeight:300}}>You accumulate one.</em></div><div style={{marginTop:38,fontFamily:Sans,fontSize:13,letterSpacing:'0.2em'}}>COMMON ROOM / DAY 17</div></div></AbsoluteFill></Scene></Sequence>
-    </AbsoluteFill>
-  )
-}
-
-const Root = () => <Composition id="CommonRoomFilm" component={CommonRoomFilm} durationInFrames={1620} fps={30} width={1920} height={1080}/>
+const Root=()=> <Composition id="CommonRoomFilm" component={CommonRoomFilm} durationInFrames={1800} fps={30} width={1920} height={1080}/>
 registerRoot(Root)
