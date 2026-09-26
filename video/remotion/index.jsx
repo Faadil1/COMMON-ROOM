@@ -1,3 +1,6 @@
+import '@fontsource-variable/newsreader/opsz.css';
+import '@fontsource/public-sans/400.css';
+import '@fontsource/public-sans/700.css';
 import React from 'react';
 import {Composition,registerRoot} from 'remotion';
 import {CommonRoomFilm} from './film.jsx';
