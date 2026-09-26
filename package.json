@@ -8,8 +8,12 @@
     "build": "node scripts/copy-og-fonts.mjs && vite build",
     "preview": "vite preview",
     "film:studio": "remotion studio video/remotion/index.jsx",
-    "film:render": "remotion render video/remotion/index.jsx CommonRoomFilm out/COMMON-ROOM-Day17.mp4 --codec=h264 --crf=17 --pixel-format=yuv420p",
-    "film:capture": "node video/scripts/capture-product.mjs"
+    "film:render": "npm run film:preflight && remotion render video/remotion/index.jsx CommonRoomFilm out/COMMON-ROOM-Day17.mp4 --codec=h264 --crf=17 --pixel-format=yuv420p",
+    "film:capture": "node video/scripts/capture-product.mjs",
+    "film:voice": "powershell -ExecutionPolicy Bypass -File video/scripts/generate-narration.ps1",
+    "film:sfx": "node video/scripts/generate-sfx.mjs",
+    "film:prepare": "npm run film:sfx && npm run film:voice",
+    "film:preflight": "node video/scripts/preflight-film.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/courier-prime": "^0.4.1",
