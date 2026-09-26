@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const base = (process.env.TARGET_URL || 'http://127.0.0.1:5173').replace(/\/$/, '')
-const outDir = fileURLToPath(new URL('../captures/', import.meta.url))
+const outDir = fileURLToPath(new URL('../../public/video-captures/', import.meta.url))
 
 await fs.mkdir(outDir, { recursive: true })
 
@@ -46,10 +46,15 @@ async function capture(path, file, selector) {
   }
 }
 
+
+await capture('/stacks', 'room-stacks.png', '.rm-stacks')
+await capture('/workshop', 'room-workshop.png', '.rm-workshop')
+await capture('/index', 'room-index.png', '.rm-index')
+await capture('/quarter', 'room-quarter.png', '.rm-quarter')
 await capture('/record', '01-member-record.png', '.record-object')
 await capture('/record', '02-member-lens.png', '#member-lens')
-await capture('/cards', '03-card-object.png')
-await capture('/collection', '04-living-collection.png')
+await capture('/cards', '03-card-object.png', '.lc-board-grid')
+await capture('/collection', '04-living-collection.png', '.nq-wall')
 
 await page.goto(base + '/collection', { waitUntil: 'domcontentloaded' })
 await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {})
@@ -66,4 +71,4 @@ if (await quarter.count()) {
 }
 
 await browser.close()
-console.log('Clean product captures written to video/captures/')
+console.log('Clean product captures written to public/video-captures/')
