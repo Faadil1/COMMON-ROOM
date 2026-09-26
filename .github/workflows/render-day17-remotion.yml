@@ -1,0 +1,61 @@
+name: Render COMMON ROOM Remotion V3
+
+on:
+  push:
+    branches:
+      - video-capture-day17
+
+jobs:
+  render-remotion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: Install Remotion
+        run: npm install --no-save remotion @remotion/cli
+
+      - name: Prepare media
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          mkdir -p public/video-assets final-video
+
+          curl -fL --retry 3 --retry-delay 2             "https://cdn.creativeclaw.co/u/f920e1ba/videos/a0e61507-0343-47ef-ae30-ad1446f9344e.mp4"             -o public/video-assets/runtime.mp4
+
+          curl -fL --retry 3 --retry-delay 2             "https://cdn.creativeclaw.co/u/f920e1ba/videos/6e636518-73ef-45ee-970b-9bc47077520d.mp4"             -o /tmp/tts-source.mp4
+
+          ffmpeg -y -i /tmp/tts-source.mp4 -vn -c:a aac -b:a 192k public/video-assets/narration.m4a
+
+          ffmpeg -y -f lavfi -i "anoisesrc=color=pink:duration=0.22"             -af "highpass=f=700,lowpass=f=4200,volume=0.12,afade=t=out:st=0.06:d=0.16"             public/video-assets/paper.wav
+
+          ffmpeg -y -f lavfi -i "sine=frequency=72:duration=0.32"             -af "volume=0.45,afade=t=out:st=0.05:d=0.27"             public/video-assets/thud.wav
+
+      - name: Render Remotion master
+        run: |
+          npx remotion render             video/remotion/index.jsx             CommonRoomFilmV3             final-video/COMMON-ROOM-Day17-MOTION-V3.mp4             --codec=h264             --crf=17             --pixel-format=yuv420p             --concurrency=2
+
+      - name: Validate final media
+        run: |
+          ffprobe -v error             -show_entries format=duration             -show_entries stream=codec_name,width,height,r_frame_rate             -of json             final-video/COMMON-ROOM-Day17-MOTION-V3.mp4             > final-video/manifest-motion-v3.json
+          cat final-video/manifest-motion-v3.json
+
+      - name: Upload final motion film
+        uses: actions/upload-artifact@v4
+        with:
+          name: common-room-day17-motion-v3
+          path: |
+            final-video/COMMON-ROOM-Day17-MOTION-V3.mp4
+            final-video/manifest-motion-v3.json
+          if-no-files-found: error
+          retention-days: 14
