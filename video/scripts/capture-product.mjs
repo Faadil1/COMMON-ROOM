@@ -28,16 +28,15 @@ const record = {
   wall: null,
 }
 
-async function seed() {
-  await page.goto(base, { waitUntil: 'domcontentloaded' })
-  await page.evaluate((value) => {
-    localStorage.setItem('common-room-member-record-v2', JSON.stringify(value))
-  }, record)
-}
+// Inject the deterministic record before the app boots on every navigation.
+await page.addInitScript(({ key, value }) => {
+  localStorage.setItem(key, JSON.stringify(value))
+}, { key: 'common-room-member-record-v2', value: record })
 
 async function capture(path, file, selector) {
-  await page.goto(base + path, { waitUntil: 'networkidle' })
-  await page.waitForTimeout(1200)
+  await page.goto(base + path, { waitUntil: 'domcontentloaded' })
+  await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {})
+  await page.waitForTimeout(1400)
   if (selector) {
     const target = page.locator(selector).first()
     await target.waitFor({ state: 'visible', timeout: 10000 })
@@ -47,13 +46,13 @@ async function capture(path, file, selector) {
   }
 }
 
-await seed()
 await capture('/record', '01-member-record.png', '.record-object')
 await capture('/record', '02-member-lens.png', '#member-lens')
 await capture('/cards', '03-card-object.png')
 await capture('/collection', '04-living-collection.png')
 
-await page.goto(base + '/collection', { waitUntil: 'networkidle' })
+await page.goto(base + '/collection', { waitUntil: 'domcontentloaded' })
+await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {})
 const reveal = page.getByRole('button', { name: /REVEAL THE QUARTER/i }).first()
 if (await reveal.count()) {
   await reveal.click()
