@@ -55,12 +55,30 @@ jobs:
 
           ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,width,height,r_frame_rate -of json final-video/COMMON-ROOM-Day17-FINAL.mp4 > final-video/manifest.json
 
+      - name: Add TTS narration
+        run: |
+          TTS_URL='https://www.aidocmaker.com/g0/audio?name=7a488677cbef430eb74758c99550a00d'
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fL --retry 2 --retry-delay 2 "$TTS_URL" -o final-video/narration.mp3; then
+              if ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 final-video/narration.mp3 >/tmp/tts_duration 2>/dev/null; then
+                break
+              fi
+            fi
+            echo "TTS not ready yet (attempt $attempt); retrying..."
+            sleep 10
+          done
+
+          echo "TTS duration: $(cat /tmp/tts_duration)"
+          ffmpeg -y             -i final-video/COMMON-ROOM-Day17-FINAL.mp4             -i final-video/narration.mp3             -map 0:v:0 -map 1:a:0             -c:v copy -c:a aac -b:a 192k             -af "loudnorm=I=-16:TP=-1.5:LRA=8,afade=t=in:st=0:d=0.25,afade=t=out:st=51.0:d=0.55"             -t 53.97 -movflags +faststart             final-video/COMMON-ROOM-Day17-FINAL-TTS.mp4
+
+          ffprobe -v error             -show_entries format=duration             -show_entries stream=codec_name,width,height,r_frame_rate             -of json final-video/COMMON-ROOM-Day17-FINAL-TTS.mp4             > final-video/manifest-tts.json
+
       - name: Upload final film
         uses: actions/upload-artifact@v4
         with:
-          name: common-room-day17-final-video
+          name: common-room-day17-final-video-tts
           path: |
-            final-video/COMMON-ROOM-Day17-FINAL.mp4
-            final-video/manifest.json
+            final-video/COMMON-ROOM-Day17-FINAL-TTS.mp4
+            final-video/manifest-tts.json
           if-no-files-found: error
           retention-days: 14
