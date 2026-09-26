@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   AbsoluteFill,
+  Audio,
   Composition,
   Img,
   Sequence,
@@ -46,6 +47,34 @@ function Caption({children,dark=false}){
   return <div style={{fontFamily:Sans,fontSize:12,fontWeight:700,letterSpacing:'0.2em',color:dark?C.ink:C.paper}}>{children}</div>
 }
 function PaperNoise(){return <AbsoluteFill style={{pointerEvents:'none',opacity:.045,backgroundImage:'repeating-radial-gradient(circle at 20% 20%,#000 0 1px,transparent 1px 3px)',backgroundSize:'8px 8px',mixBlendMode:'multiply'}}/>}
+
+function TraceSpine(){
+  const f=useCurrentFrame()
+  const progress=ease(f,0,1800,0,1)
+  const phaseColors=[
+    [0,C.reader],[150,C.reader],[390,C.maker],[690,C.seeker],[930,C.seeker],[1170,C.local],[1440,C.local],[1800,C.ink],
+  ]
+  let color=C.reader
+  for(let i=0;i<phaseColors.length-1;i++){
+    if(f>=phaseColors[i][0] && f<phaseColors[i+1][0]) { color=phaseColors[i][1]; break }
+  }
+  return <svg viewBox="0 0 1920 1080" style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:80}}>
+    <path d="M70 1008 H260 L320 968 H520 L585 1010 H785 L850 958 H1060 L1130 1004 H1335 L1405 950 H1600 L1665 996 H1850"
+      fill="none" stroke="rgba(247,243,234,.12)" strokeWidth="1.5"/>
+    <path d="M70 1008 H260 L320 968 H520 L585 1010 H785 L850 958 H1060 L1130 1004 H1335 L1405 950 H1600 L1665 996 H1850"
+      fill="none" stroke={color} strokeWidth="2.4" pathLength="100" strokeDasharray="100" strokeDashoffset={100-progress*100}/>
+    <circle cx={70+1780*progress} cy={1008} r="4.5" fill={color} opacity=".9"/>
+  </svg>
+}
+
+function ApertureGate({tone=C.paper}){
+  const f=useCurrentFrame()
+  const grow=interpolate(f,[0,9,12,24],[0,1,1,0],clamp)
+  const scale=.06+grow*5.2
+  return <AbsoluteFill style={{pointerEvents:'none',zIndex:120}}>
+    <div style={{position:'absolute',left:'50%',top:'50%',width:720,height:480,background:tone,clipPath:aperture,transform:'translate(-50%,-50%) scale('+scale+') rotate('+((1-grow)*-4)+'deg)',opacity:grow}}/>
+  </AbsoluteFill>
+}
 
 function Opening({duration}){
   const f=useCurrentFrame(); const {fps}=useVideoConfig()
@@ -240,6 +269,9 @@ function Outro({duration}){
 }
 
 export function CommonRoomFilm(){
+  const transitions=[
+    [150,C.ink],[390,C.paper],[690,C.ink],[930,C.paper2],[1170,C.ink],[1440,C.paper2],[1650,C.paper],
+  ]
   return <AbsoluteFill style={{background:C.ink}}>
     <Sequence from={0} durationInFrames={150}><Opening duration={150}/></Sequence>
     <Sequence from={150} durationInFrames={240}><Rooms duration={240}/></Sequence>
@@ -249,6 +281,19 @@ export function CommonRoomFilm(){
     <Sequence from={1170} durationInFrames={270}><Wall duration={270}/></Sequence>
     <Sequence from={1440} durationInFrames={210}><Quarter duration={210}/></Sequence>
     <Sequence from={1650} durationInFrames={150}><Outro duration={150}/></Sequence>
+
+    <TraceSpine/>
+    {transitions.map(([at,tone])=><Sequence key={at} from={at-12} durationInFrames={24}><ApertureGate tone={tone}/></Sequence>)}
+
+    <Sequence from={18} durationInFrames={1650}><Audio src={staticFile('video-audio/narration.wav')} volume={.96}/></Sequence>
+
+    {[150,210,270,330].map((at)=><Sequence key={'tick-'+at} from={at} durationInFrames={8}><Audio src={staticFile('video-audio/tick.wav')} volume={.20}/></Sequence>)}
+    <Sequence from={390} durationInFrames={12}><Audio src={staticFile('video-audio/thud.wav')} volume={.30}/></Sequence>
+    <Sequence from={690} durationInFrames={10}><Audio src={staticFile('video-audio/paper.wav')} volume={.22}/></Sequence>
+    <Sequence from={930} durationInFrames={30}><Audio src={staticFile('video-audio/scan.wav')} volume={.20}/></Sequence>
+    <Sequence from={1170} durationInFrames={12}><Audio src={staticFile('video-audio/thud.wav')} volume={.18}/></Sequence>
+    <Sequence from={1440} durationInFrames={54}><Audio src={staticFile('video-audio/swell.wav')} volume={.24}/></Sequence>
+    <Sequence from={1650} durationInFrames={10}><Audio src={staticFile('video-audio/paper.wav')} volume={.12}/></Sequence>
   </AbsoluteFill>
 }
 
