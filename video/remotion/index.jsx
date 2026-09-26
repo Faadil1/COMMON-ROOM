@@ -285,15 +285,17 @@ export function CommonRoomFilm(){
     <TraceSpine/>
     {transitions.map(([at,tone])=><Sequence key={at} from={at-12} durationInFrames={24}><ApertureGate tone={tone}/></Sequence>)}
 
-    <Sequence from={18} durationInFrames={1650}><Audio src={staticFile('video-audio/narration.wav')} volume={.96}/></Sequence>
+    <Audio src={staticFile('video-audio/score.mp3')} volume={.10}/>
+    <Sequence from={18} durationInFrames={1650}><Audio src={staticFile('video-audio/narration.mp3')} volume={.96}/></Sequence>
 
-    {[150,210,270,330].map((at)=><Sequence key={'tick-'+at} from={at} durationInFrames={8}><Audio src={staticFile('video-audio/tick.wav')} volume={.20}/></Sequence>)}
-    <Sequence from={390} durationInFrames={12}><Audio src={staticFile('video-audio/thud.wav')} volume={.30}/></Sequence>
-    <Sequence from={690} durationInFrames={10}><Audio src={staticFile('video-audio/paper.wav')} volume={.22}/></Sequence>
-    <Sequence from={930} durationInFrames={30}><Audio src={staticFile('video-audio/scan.wav')} volume={.20}/></Sequence>
-    <Sequence from={1170} durationInFrames={12}><Audio src={staticFile('video-audio/thud.wav')} volume={.18}/></Sequence>
-    <Sequence from={1440} durationInFrames={54}><Audio src={staticFile('video-audio/swell.wav')} volume={.24}/></Sequence>
-    <Sequence from={1650} durationInFrames={10}><Audio src={staticFile('video-audio/paper.wav')} volume={.12}/></Sequence>
+    {[150,210,270,330].map((at)=><Sequence key={'tick-'+at} from={at} durationInFrames={8}><Audio src={staticFile('video-audio/sfx-tick.mp3')} volume={.20}/></Sequence>)}
+    <Sequence from={820} durationInFrames={12}><Audio src={staticFile('video-audio/sfx-stamp.mp3')} volume={.20}/></Sequence>
+    <Sequence from={390} durationInFrames={12}><Audio src={staticFile('video-audio/sfx-thud.mp3')} volume={.30}/></Sequence>
+    <Sequence from={690} durationInFrames={10}><Audio src={staticFile('video-audio/sfx-paper.mp3')} volume={.22}/></Sequence>
+    <Sequence from={930} durationInFrames={30}><Audio src={staticFile('video-audio/sfx-scan.mp3')} volume={.20}/></Sequence>
+    <Sequence from={1170} durationInFrames={12}><Audio src={staticFile('video-audio/sfx-thud.mp3')} volume={.18}/></Sequence>
+    <Sequence from={1440} durationInFrames={54}><Audio src={staticFile('video-audio/score.mp3')} volume={.24}/></Sequence>
+    <Sequence from={1650} durationInFrames={10}><Audio src={staticFile('video-audio/sfx-paper.mp3')} volume={.12}/></Sequence>
   </AbsoluteFill>
 }
 
