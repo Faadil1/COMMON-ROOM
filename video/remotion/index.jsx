@@ -78,27 +78,32 @@ const rooms=[
   ['room-quarter.png','QUARTER','BELONG',C.local,'STREET'],
 ]
 function Rooms({duration}){
-  const f=useCurrentFrame(); const {fps}=useVideoConfig()
+  const f=useCurrentFrame()
+  const segment=60
   return <Fade duration={duration} style={{background:C.ink,color:C.paper}}>
     <Brand label="ROOMS LEAVE EVIDENCE"/>
-    <div style={{position:'absolute',left:64,right:64,top:126,bottom:110,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:18}}>
-      {rooms.map((r,i)=>{
-        const p=spring({frame:f-(8+i*10),fps,config:{damping:18,stiffness:100}})
-        const y=(1-p)*72
-        return <div key={r[1]} style={{position:'relative',overflow:'hidden',background:'#2a2925',border:'1px solid rgba(247,243,234,.12)',transform:'translateY('+y+'px)',opacity:p}}>
-          <Img src={staticFile('video-captures/'+r[0])} style={{width:'100%',height:'100%',objectFit:'cover',filter:'saturate(.82) contrast(1.02)',transform:'scale(1.08)'}}/>
-          <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,transparent 40%,rgba(20,19,16,.86))'}}/>
-          <div style={{position:'absolute',left:22,right:22,bottom:22}}>
-            <div style={{height:4,width:48,background:r[3],marginBottom:16}}/>
-            <div style={{fontFamily:Serif,fontSize:34,lineHeight:.95}}>{r[1]}</div>
-            <div style={{fontFamily:Sans,fontSize:10,letterSpacing:'0.16em',marginTop:8,opacity:.7}}>{r[2]} → {r[4]}</div>
-          </div>
+    {rooms.map((r,i)=>{
+      const start=i*segment
+      const end=start+segment
+      const op=interpolate(f,[start,start+8,end-10,end],[0,1,1,0],clamp)
+      const x=ease(f,start,start+18,110,0)
+      const trace=ease(f,start+10,start+48,0,1)
+      return <AbsoluteFill key={r[1]} style={{opacity:op}}>
+        <div style={{position:'absolute',left:70,top:175,width:520}}>
+          <Caption>{String(i+1).padStart(2,'0')} / {r[4]}</Caption>
+          <div style={{fontFamily:Serif,fontSize:104,lineHeight:.9,letterSpacing:'-0.045em',marginTop:18}}>{r[1]}</div>
+          <div style={{fontFamily:Serif,fontSize:30,lineHeight:1.15,opacity:.7,marginTop:18}}>{r[2]} leaves evidence.</div>
+          <div style={{marginTop:34,height:2,width:(300*trace),background:r[3]}}/>
         </div>
-      })}
-    </div>
-    <div style={{position:'absolute',left:64,right:64,bottom:54,height:1,background:'rgba(247,243,234,.22)'}}>
-      <div style={{height:2,width:(ease(f,30,120,0,100))+'%',background:C.paper}}/>
-    </div>
+        <div style={{position:'absolute',right:70,top:122,width:1110,height:800,clipPath:aperture,overflow:'hidden',transform:'translateX('+x+'px)',background:'#2a2925'}}>
+          <Img src={staticFile('video-captures/'+r[0])} style={{width:'100%',height:'100%',objectFit:'cover',transform:'scale(1.05)',filter:'saturate(.9) contrast(1.03)'}}/>
+          <div style={{position:'absolute',inset:0,boxShadow:'inset 0 0 0 1px rgba(247,243,234,.14)'}}/>
+        </div>
+        <div style={{position:'absolute',left:70,right:70,bottom:56,height:1,background:'rgba(247,243,234,.15)'}}>
+          <div style={{height:2,width:(trace*100)+'%',background:r[3]}}/>
+        </div>
+      </AbsoluteFill>
+    })}
   </Fade>
 }
 
@@ -118,7 +123,11 @@ function Strata({duration}){
     <div style={{position:'absolute',right:100,top:190,width:920,height:590,perspective:1400,opacity:enter}}>
       {offsets.map((o,i)=>{
         const k=spread*(o*(.65+.35*settle))
-        return <div key={o} style={{position:'absolute',inset:0,transform:'translate('+k+'px,'+k+'px) rotate('+(i*.25*spread)+'deg)',borderRadius:24,background:'linear-gradient(120deg,rgba(247,243,234,.16),rgba(247,243,234,.03))',border:'1px solid rgba(247,243,234,.24)',clipPath:aperture,opacity:.22+i*.09}}/>
+        const room=rooms[i]
+        return <div key={o} style={{position:'absolute',inset:0,transform:'translate('+k+'px,'+k+'px) rotate('+(i*.25*spread)+'deg)',borderRadius:24,overflow:'hidden',border:'1px solid rgba(247,243,234,.24)',clipPath:aperture,opacity:.22+i*.11}}>
+          <Img src={staticFile('video-captures/'+room[0])} style={{width:'100%',height:'100%',objectFit:'cover',filter:'grayscale(.45) contrast(1.08)',transform:'scale(1.08)'}}/>
+          <div style={{position:'absolute',inset:0,background:'linear-gradient(120deg,'+room[3]+'55,rgba(28,27,24,.72))'}}/>
+        </div>
       })}
       <div style={{position:'absolute',inset:0,overflow:'hidden',borderRadius:24,clipPath:aperture,border:'1px solid rgba(247,243,234,.34)',background:C.paper2}}>
         <Img src={staticFile('video-captures/01-member-record.png')} style={{width:'100%',height:'100%',objectFit:'cover',transform:'scale(1.06)'}}/>
@@ -129,17 +138,25 @@ function Strata({duration}){
 }
 
 function ObjectShot({duration}){
-  const f=useCurrentFrame(); const spin=ease(f,0,duration,-7,5); const zoom=ease(f,20,duration-20,1.08,1.0)
+  const f=useCurrentFrame()
+  const flip=ease(f,82,155,0,180)
+  const zoom=ease(f,18,duration-24,1.08,1)
+  const showBack=flip>90
+  const rot=showBack?flip-180:flip
   return <Fade duration={duration} style={{background:C.paper,color:C.ink}}>
     <Brand dark label="CARD AS OBJECT"/>
-    <div style={{position:'absolute',left:84,top:190,width:560}}>
+    <div style={{position:'absolute',left:84,top:185,width:560}}>
       <Caption dark>THE CARD LEAVES THE SCREEN</Caption>
       <div style={{fontFamily:Serif,fontSize:78,lineHeight:.94,marginTop:20}}>QR. Share code.<br/>Renewal marks.<br/>Wear over time.</div>
+      <div style={{fontFamily:Sans,fontSize:10,letterSpacing:'0.17em',marginTop:34,opacity:.5}}>FRONT → BACK / ONE CONTROLLED TURN</div>
     </div>
-    <div style={{position:'absolute',right:90,top:160,width:1040,height:690,perspective:1500}}>
-      <div style={{width:'100%',height:'100%',transform:'rotateY('+spin+'deg) rotateX(2deg) scale('+zoom+')',transformStyle:'preserve-3d',boxShadow:'0 34px 70px rgba(28,27,24,.16)',overflow:'hidden',borderRadius:18}}>
-        <Img src={staticFile('video-captures/03-card-object.png')} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+    <div style={{position:'absolute',right:125,top:185,width:900,height:590,perspective:1600}}>
+      <div style={{position:'absolute',inset:0,transform:'rotateY('+rot+'deg) rotateX(2deg) scale('+zoom+')',transformStyle:'preserve-3d',transformOrigin:'50% 50%',filter:'drop-shadow(0 35px 35px rgba(28,27,24,.18))'}}>
+        <Img src={staticFile(showBack?'video-captures/card-seeker-back.png':'video-captures/card-seeker-front.png')} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
       </div>
+    </div>
+    <div style={{position:'absolute',right:120,bottom:78,display:'flex',gap:10}}>
+      {['SHORT CODE','QR','RENEWED','PATINA'].map(x=><span key={x} style={{fontFamily:Sans,fontSize:10,letterSpacing:'0.15em',border:'1px solid rgba(28,27,24,.18)',padding:'10px 12px'}}>{x}</span>)}
     </div>
     <PaperNoise/>
   </Fade>
@@ -162,17 +179,27 @@ function Lens({duration}){
 }
 
 function Wall({duration}){
-  const f=useCurrentFrame(); const p=ease(f,20,80,0,1)
+  const f=useCurrentFrame()
+  const reveal=ease(f,105,165,0,1)
+  const cardP=ease(f,10,70,0,1)
+  const positions=[
+    [70,85,-8,.84],[390,20,4,.78],[655,155,8,.72],[190,330,2,.76]
+  ]
   return <Fade duration={duration} style={{background:C.ink,color:C.paper}}>
     <Brand label="THE LIVING COLLECTION"/>
-    <div style={{position:'absolute',left:78,top:150,width:670}}>
+    <div style={{position:'absolute',left:78,top:150,width:660}}>
       <Caption>FROM PRIVATE RECORD TO SHARED MEMORY</Caption>
       <div style={{fontFamily:Serif,fontSize:82,lineHeight:.93,marginTop:20}}>One card becomes<br/>a collective wall.</div>
       <div style={{fontFamily:Serif,fontSize:27,lineHeight:1.25,opacity:.72,marginTop:26}}>Not a feed. Not a leaderboard. A public accession surface.</div>
     </div>
-    <div style={{position:'absolute',right:70,top:115,width:1080,height:800,overflow:'hidden',opacity:p,transform:'scale('+(.95+.05*p)+')'}}>
+    <div style={{position:'absolute',right:60,top:125,width:1100,height:770,opacity:1-reveal}}>
+      {positions.map((p,i)=><div key={i} style={{position:'absolute',left:p[0],top:p[1],width:390,height:255,transform:'translateY('+((1-cardP)*(80+i*14))+'px) rotate('+(p[2]*cardP)+'deg) scale('+p[3]+')',opacity:cardP,filter:'drop-shadow(0 24px 26px rgba(0,0,0,.26))'}}>
+        <Img src={staticFile('video-captures/card-seeker-front.png')} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+      </div>)}
+    </div>
+    <div style={{position:'absolute',right:55,top:105,width:1120,height:820,overflow:'hidden',opacity:reveal,transform:'scale('+(0.96+0.04*reveal)+')'}}>
       <Img src={staticFile('video-captures/04-living-collection.png')} style={{width:'100%',height:'100%',objectFit:'cover',filter:'contrast(1.03)'}}/>
-      <div style={{position:'absolute',inset:0,boxShadow:'inset 0 0 100px rgba(0,0,0,.32)'}}/>
+      <div style={{position:'absolute',inset:0,boxShadow:'inset 0 0 110px rgba(0,0,0,.32)'}}/>
     </div>
     <div style={{position:'absolute',left:78,bottom:72,display:'flex',gap:10}}>
       {['PUBLISHED WITH CONSENT','REVERSIBLE','LIVE WALL'].map(x=><div key={x} style={{fontFamily:Sans,fontSize:10,letterSpacing:'0.15em',border:'1px solid rgba(247,243,234,.24)',padding:'10px 12px'}}>{x}</div>)}
@@ -190,9 +217,9 @@ function Quarter({duration}){
       <path d="M-20 820 C320 700 520 650 760 680 S1210 770 1450 540 S1710 330 1950 390" fill="none" stroke={C.paper} strokeWidth="2" opacity=".48" pathLength="100" strokeDasharray="100" strokeDashoffset={line}/>
       <path d="M180 100 C420 260 500 420 790 470 S1270 360 1510 580 S1690 850 1910 920" fill="none" stroke={C.paper} strokeWidth="2" opacity=".32" pathLength="100" strokeDasharray="100" strokeDashoffset={line+14}/>
     </svg>
-    <div style={{position:'absolute',left:76,bottom:78,width:900,opacity:text,transform:'translateY('+((1-text)*30)+'px)'}}>
+    <div style={{position:'absolute',left:76,top:170,width:760,opacity:text,transform:'translateY('+((1-text)*24)+'px)'}}>
       <Caption>ONE TRACE → MANY FORMS</Caption>
-      <div style={{fontFamily:Serif,fontSize:76,lineHeight:.94,marginTop:14}}>Individual traces<br/>become civic memory.</div>
+      <div style={{fontFamily:Serif,fontSize:72,lineHeight:.94,marginTop:14}}>Individual traces<br/>become civic memory.</div>
       <div style={{fontFamily:Sans,fontSize:11,letterSpacing:'0.18em',marginTop:20,opacity:.65}}>THE LIBRARY REMEMBERS.</div>
     </div>
   </Fade>
