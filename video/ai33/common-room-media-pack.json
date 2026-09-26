@@ -43,10 +43,9 @@
     }
   ],
   "music": {
-    "title": "Common Room",
-    "model": "music-2.5+",
-    "instrumental": true,
-    "n": 1,
-    "idea": "Instrumental editorial documentary underscore for a public-library identity film. Tactile archival character: restrained felt-piano fragments, muted low strings, brushed paper percussion, tiny mechanical catalogue ticks, warm room air, subtle analog texture. 74 BPM, sparse and curious at first, gently deepening as traces become a physical card, a delicate optical shimmer around the Member Lens, then a restrained civic lift as many records form the Living Collection and North Quarter. Leave generous negative space for narration. No vocals, no lyrics, no trailer booms, no corporate motivational sound, no synthwave, no epic climax."
+    "provider": "suno",
+    "create_mode": "simple",
+    "make_instrumental": true,
+    "gpt_description_prompt": "Instrumental editorial documentary underscore for a public-library identity film. Tactile archival character: restrained felt-piano fragments, muted low strings, brushed paper percussion, tiny mechanical catalogue ticks, warm room air, subtle analog texture. Sparse and curious at first, gently deepening as traces become a physical card, a delicate optical shimmer around the Member Lens, then a restrained civic lift as many records form the Living Collection and North Quarter. Leave generous negative space for narration. No vocals, no trailer booms, no corporate motivational sound, no synthwave, no epic climax."
   }
 }
