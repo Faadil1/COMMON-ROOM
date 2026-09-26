@@ -12,8 +12,13 @@
     "film:capture": "node video/scripts/capture-product.mjs",
     "film:voice": "powershell -ExecutionPolicy Bypass -File video/scripts/generate-narration.ps1",
     "film:sfx": "node video/scripts/generate-sfx.mjs",
-    "film:prepare": "npm run film:sfx && npm run film:voice",
-    "film:preflight": "node video/scripts/preflight-film.mjs"
+    "film:prepare": "npm run film:ai33:pack",
+    "film:preflight": "node video/scripts/preflight-film.mjs",
+    "film:ai33:probe": "powershell -ExecutionPolicy Bypass -File video/scripts/run-ai33-media.ps1 probe",
+    "film:ai33:voice": "powershell -ExecutionPolicy Bypass -File video/scripts/run-ai33-media.ps1 voice",
+    "film:ai33:sfx": "powershell -ExecutionPolicy Bypass -File video/scripts/run-ai33-media.ps1 sfx",
+    "film:ai33:music": "powershell -ExecutionPolicy Bypass -File video/scripts/run-ai33-media.ps1 music",
+    "film:ai33:pack": "powershell -ExecutionPolicy Bypass -File video/scripts/run-ai33-media.ps1 pack"
   },
   "dependencies": {
     "@expo-google-fonts/courier-prime": "^0.4.1",
