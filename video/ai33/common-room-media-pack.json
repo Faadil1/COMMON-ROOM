@@ -1,0 +1,52 @@
+{
+  "project": "COMMON ROOM — Day 17",
+  "narration": {
+    "target_duration_seconds": 56,
+    "text": "Most library cards prove access. Common Room asks a different question: can a card reveal belonging?\n\nNo quiz. No profile. What you do inside the library leaves the evidence: a margin, a registration mark, a reference path, a street.\n\nThose traces do not decorate the card. They build it, layer by layer, until a Member Record exists.\n\nThe card can leave the screen, carry a short code and QR, renew, wear, and remember return.\n\nIts Accession Aperture is not decoration. The same cut becomes a lens into the memory the library keeps.\n\nAnd if a member chooses to publish it, one record becomes part of a Living Collection.\n\nPull back far enough, and individual traces begin to draw the quarter itself.\n\nYou do not receive a card. You accumulate one."
+  },
+  "voice": {
+    "provider": "elevenlabs",
+    "voice_id": "elevenlabs_21m00Tcm4TlvDq8ikWAM",
+    "speed": 0.97,
+    "with_transcript": true
+  },
+  "sound_effects": [
+    {
+      "id": "paper",
+      "duration_seconds": 0.9,
+      "prompt_influence": 0.42,
+      "text": "Close-up archival library card stock sliding across an oak reading desk, dry paper fiber friction, intimate tactile sound, single movement, no music, no voices."
+    },
+    {
+      "id": "tick",
+      "duration_seconds": 0.55,
+      "prompt_influence": 0.45,
+      "text": "Single mechanical library catalogue drawer latch click with a tiny index-card tap, dry tactile transient, archival reading room, no voices, no music."
+    },
+    {
+      "id": "thud",
+      "duration_seconds": 0.8,
+      "prompt_influence": 0.48,
+      "text": "Restrained letterpress platen registration impact on thick uncoated paper, wood and metal body, soft low thump, precise tactile print-shop sound, no voices, no music."
+    },
+    {
+      "id": "scan",
+      "duration_seconds": 1.2,
+      "prompt_influence": 0.38,
+      "text": "Subtle optical archival reader scanning across paper, warm analog mechanism, delicate moving tone, museum conservation equipment, not futuristic, no voices, no music."
+    },
+    {
+      "id": "stamp",
+      "duration_seconds": 0.65,
+      "prompt_influence": 0.5,
+      "text": "Single library renewal stamp pressed firmly onto a paper date slip, rubber stamp impact and tiny paper resonance, dry close-mic sound, no voices, no music."
+    }
+  ],
+  "music": {
+    "title": "Common Room",
+    "model": "music-2.5+",
+    "instrumental": true,
+    "n": 1,
+    "idea": "Instrumental editorial documentary underscore for a public-library identity film. Tactile archival character: restrained felt-piano fragments, muted low strings, brushed paper percussion, tiny mechanical catalogue ticks, warm room air, subtle analog texture. 74 BPM, sparse and curious at first, gently deepening as traces become a physical card, a delicate optical shimmer around the Member Lens, then a restrained civic lift as many records form the Living Collection and North Quarter. Leave generous negative space for narration. No vocals, no lyrics, no trailer booms, no corporate motivational sound, no synthwave, no epic climax."
+  }
+}
