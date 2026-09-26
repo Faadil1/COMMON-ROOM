@@ -1,10 +1,16 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 
 const base = (process.env.TARGET_URL || 'http://127.0.0.1:5173').replace(/\/$/, '')
-const out = new URL('../captures/', import.meta.url)
+const outDir = fileURLToPath(new URL('../captures/', import.meta.url))
 
-await fs.mkdir(out, { recursive: true })
+await fs.mkdir(outDir, { recursive: true })
+
+function outputPath(file) {
+  return path.join(outDir, file)
+}
 
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 })
@@ -35,9 +41,9 @@ async function capture(path, file, selector) {
   if (selector) {
     const target = page.locator(selector).first()
     await target.waitFor({ state: 'visible', timeout: 10000 })
-    await target.screenshot({ path: new URL(file, out).pathname })
+    await target.screenshot({ path: outputPath(file) })
   } else {
-    await page.screenshot({ path: new URL(file, out).pathname, fullPage: false })
+    await page.screenshot({ path: outputPath(file), fullPage: false })
   }
 }
 
@@ -55,9 +61,9 @@ if (await reveal.count()) {
 }
 const quarter = page.locator('.collection-quarter').first()
 if (await quarter.count()) {
-  await quarter.screenshot({ path: new URL('05-quarter.png', out).pathname })
+  await quarter.screenshot({ path: outputPath('05-quarter.png') })
 } else {
-  await page.screenshot({ path: new URL('05-quarter.png', out).pathname })
+  await page.screenshot({ path: outputPath('05-quarter.png') })
 }
 
 await browser.close()
