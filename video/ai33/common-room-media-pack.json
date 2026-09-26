@@ -46,6 +46,6 @@
     "provider": "suno",
     "create_mode": "simple",
     "make_instrumental": true,
-    "gpt_description_prompt": "Instrumental editorial documentary underscore for a public-library identity film. Tactile archival character: restrained felt-piano fragments, muted low strings, brushed paper percussion, tiny mechanical catalogue ticks, warm room air, subtle analog texture. Sparse and curious at first, gently deepening as traces become a physical card, a delicate optical shimmer around the Member Lens, then a restrained civic lift as many records form the Living Collection and North Quarter. Leave generous negative space for narration. No vocals, no trailer booms, no corporate motivational sound, no synthwave, no epic climax."
+    "gpt_description_prompt": "Instrumental editorial documentary score for a public-library identity film: sparse felt piano, muted low strings, brushed paper percussion, tiny mechanical catalogue ticks, warm room air and subtle analog texture. Curious and restrained at first, deepen as traces form a card, add a delicate optical shimmer for the Member Lens, then a modest civic lift for the Living Collection. Leave space for narration. No vocals, trailer booms, synthwave or corporate uplift."
   }
 }
