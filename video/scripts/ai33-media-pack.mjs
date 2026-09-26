@@ -16,6 +16,11 @@ if(!apiKey) throw new Error('AI33_API_KEY is not loaded in this process.')
 const base=(process.env.AI33_BASE_URL||'https://api.ai33.pro').replace(/\/$/,'')
 const cfg=JSON.parse(await fs.readFile(cfgPath,'utf8'))
 const mode=process.argv[2]||'probe'
+const force=process.env.AI33_FORCE_REGENERATE==='1'
+
+async function exists(file){
+  try { await fs.access(file); return true } catch { return false }
+}
 
 async function request(url,options={}){
   const res=await fetch(url,{...options,headers:{'xi-api-key':apiKey,...(options.headers||{})}})
@@ -71,6 +76,12 @@ async function probe(){
   console.log(JSON.stringify({ok:true,health:result.health,credits:result.credits,voice_count:result.voices?.data?.length??null,image_model_count:Array.isArray(result.image_models)?result.image_models.length:(result.image_models?.data?.length??null)},null,2))
 }
 async function voice(){
+  const audioPath=path.join(outDir,'narration.mp3')
+  const receiptPath=path.join(generatedDir,'ai33-voice-receipt.json')
+  if(!force && await exists(audioPath) && await exists(receiptPath)){
+    console.log(JSON.stringify({ok:true,type:'voice',skipped:true,audio:'public/video-audio/narration.mp3'},null,2))
+    return
+  }
   const form=new FormData()
   form.append('text',cfg.narration.text)
   form.append('voice_id',cfg.voice.voice_id)
@@ -81,19 +92,25 @@ async function voice(){
   const task=await poll(created.task_id)
   const url=findUrl(task?.metadata)
   if(!url) throw new Error('TTS completed without audio URL')
-  await download(url,path.join(outDir,'narration.mp3'))
-  await fs.writeFile(path.join(generatedDir,'ai33-voice-receipt.json'),JSON.stringify({task_id:created.task_id,metadata:task.metadata},null,2))
+  await download(url,audioPath)
+  await fs.writeFile(receiptPath,JSON.stringify({task_id:created.task_id,metadata:task.metadata},null,2))
   console.log(JSON.stringify({ok:true,type:'voice',task_id:created.task_id,audio:'public/video-audio/narration.mp3'},null,2))
 }
 async function sfx(){
   const receipts=[]
   for(const item of cfg.sound_effects){
+    const file='sfx-'+item.id+'.mp3'
+    const filePath=path.join(outDir,file)
+    if(!force && await exists(filePath)){
+      receipts.push({id:item.id,file,skipped:true})
+      console.log('AI33 SFX exists, skipping:',item.id)
+      continue
+    }
     const taskId=await createJson('/v1/task/sound-effect',{text:item.text,duration_seconds:item.duration_seconds,prompt_influence:item.prompt_influence,loop:false,model_id:'eleven_text_to_sound_v2'})
     const task=await poll(taskId)
     const url=findUrl(task?.metadata)||findUrl(task)
     if(!url) throw new Error('SFX '+item.id+' completed without audio URL')
-    const file='sfx-'+item.id+'.mp3'
-    await download(url,path.join(outDir,file))
+    await download(url,filePath)
     receipts.push({id:item.id,task_id:taskId,file,credit_cost:task.credit_cost??null})
     console.log('AI33 SFX ready:',item.id)
   }
@@ -102,13 +119,24 @@ async function sfx(){
 }
 async function music(){
   const m=cfg.music
-  const taskId=await createJson('/v1m/task/music-generation',{title:m.title,model:m.model,generation_type:1,idea:m.idea,lyrics:'',n:m.n,rewrite_idea_switch:false,instrumental:true})
+  const audioPath=path.join(outDir,'score.mp3')
+  const receiptPath=path.join(generatedDir,'ai33-music-receipt.json')
+  if(!force && await exists(audioPath) && await exists(receiptPath)){
+    console.log(JSON.stringify({ok:true,type:'music',skipped:true,audio:'public/video-audio/score.mp3'},null,2))
+    return
+  }
+  if(m.provider!=='suno') throw new Error('COMMON ROOM music provider must be suno')
+  const taskId=await createJson('/v1s/task/music-generation',{
+    create_mode:m.create_mode||'simple',
+    gpt_description_prompt:m.gpt_description_prompt,
+    make_instrumental:m.make_instrumental!==false
+  })
   const task=await poll(taskId)
   const url=findUrl(task?.metadata)||findUrl(task)
-  if(!url) throw new Error('Music completed without audio URL')
-  await download(url,path.join(outDir,'score.mp3'))
-  await fs.writeFile(path.join(generatedDir,'ai33-music-receipt.json'),JSON.stringify({task_id:taskId,credit_cost:task.credit_cost??null,metadata:task.metadata},null,2))
-  console.log(JSON.stringify({ok:true,type:'music',task_id:taskId,audio:'public/video-audio/score.mp3'},null,2))
+  if(!url) throw new Error('Suno music completed without audio URL')
+  await download(url,audioPath)
+  await fs.writeFile(receiptPath,JSON.stringify({provider:'suno',task_id:taskId,credit_cost:task.credit_cost??null,metadata:task.metadata},null,2))
+  console.log(JSON.stringify({ok:true,type:'music',provider:'suno',task_id:taskId,audio:'public/video-audio/score.mp3'},null,2))
 }
 async function main(){
   if(mode==='probe') return probe()
