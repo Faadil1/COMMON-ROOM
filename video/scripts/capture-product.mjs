@@ -33,13 +33,25 @@ await page.addInitScript(({ key, value }) => {
   localStorage.setItem(key, JSON.stringify(value))
 }, { key: 'common-room-member-record-v2', value: record })
 
+function filmUrl(route) {
+  const url = new URL(base + route)
+  url.searchParams.set('flat', '1')
+  return url.toString()
+}
+
 async function capture(path, file, selector) {
-  await page.goto(base + path, { waitUntil: 'domcontentloaded' })
+  await page.goto(filmUrl(path), { waitUntil: 'domcontentloaded' })
   await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {})
   await page.waitForTimeout(1400)
   if (selector) {
     const target = page.locator(selector).first()
-    await target.waitFor({ state: 'visible', timeout: 10000 })
+    try {
+      await target.waitFor({ state: 'visible', timeout: 15000 })
+    } catch (error) {
+      await page.screenshot({ path: outputPath('DEBUG-' + file), fullPage: true }).catch(() => {})
+      console.error('Capture failed', { route: path, selector, url: page.url() })
+      throw error
+    }
     await target.screenshot({ path: outputPath(file) })
   } else {
     await page.screenshot({ path: outputPath(file), fullPage: false })
@@ -56,7 +68,7 @@ await capture('/record', '02-member-lens.png', '#member-lens')
 await capture('/cards', '03-card-object.png', '.lc-board-grid')
 await capture('/collection', '04-living-collection.png', '.nq-wall')
 
-await page.goto(base + '/collection', { waitUntil: 'domcontentloaded' })
+await page.goto(filmUrl('/collection'), { waitUntil: 'domcontentloaded' })
 await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {})
 const reveal = page.getByRole('button', { name: /REVEAL THE QUARTER/i }).first()
 if (await reveal.count()) {
