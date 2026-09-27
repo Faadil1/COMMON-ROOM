@@ -34,7 +34,7 @@ const ease=(f,a,b,c,d)=>interpolate(f,[a,b],[c,d],clamp)
 
 function Fade({children,duration,style={}}){
   const f=useCurrentFrame()
-  const opacity=interpolate(f,[0,10,duration-10,duration],[0,1,1,0],clamp)
+  const opacity=interpolate(f,[0,4,duration-4,duration],[1,1,1,1],clamp)
   return <AbsoluteFill style={{...style,opacity}}>{children}</AbsoluteFill>
 }
 function Brand({dark=false,label='COMMON ROOM'}){
@@ -69,7 +69,7 @@ function TraceSpine(){
 
 function ApertureGate({tone=C.paper}){
   const f=useCurrentFrame()
-  const grow=interpolate(f,[0,9,12,24],[0,1,1,0],clamp)
+  const grow=interpolate(f,[0,5,7,14],[0,1,1,0],clamp)
   const scale=.06+grow*5.2
   return <AbsoluteFill style={{pointerEvents:'none',zIndex:120}}>
     <div style={{position:'absolute',left:'50%',top:'50%',width:720,height:480,background:tone,clipPath:aperture,transform:'translate(-50%,-50%) scale('+scale+') rotate('+((1-grow)*-4)+'deg)',opacity:grow}}/>
@@ -114,7 +114,7 @@ function Rooms({duration}){
     {rooms.map((r,i)=>{
       const start=i*segment
       const end=start+segment
-      const op=interpolate(f,[start,start+8,end-10,end],[0,1,1,0],clamp)
+      const op=interpolate(f,[start-8,start+8,end-8,end+8],[0,1,1,0],clamp)
       const x=ease(f,start,start+18,110,0)
       const trace=ease(f,start+10,start+48,0,1)
       return <AbsoluteFill key={r[1]} style={{opacity:op}}>
@@ -283,7 +283,7 @@ export function CommonRoomFilm(){
     <Sequence from={1650} durationInFrames={150}><Outro duration={150}/></Sequence>
 
     <TraceSpine/>
-    {transitions.map(([at,tone])=><Sequence key={at} from={at-12} durationInFrames={24}><ApertureGate tone={tone}/></Sequence>)}
+    {transitions.map(([at,tone])=><Sequence key={at} from={at-7} durationInFrames={14}><ApertureGate tone={tone}/></Sequence>)}
 
     <Audio src={staticFile('video-audio/score.mp3')} volume={.10}/>
     <Sequence from={18} durationInFrames={1650}><Audio src={staticFile('video-audio/narration.mp3')} volume={.96}/></Sequence>
